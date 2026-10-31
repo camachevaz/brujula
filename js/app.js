@@ -77,15 +77,37 @@
     if (cleanup) { cleanup(); cleanup = null; }
     const hash = location.hash.replace(/^#/, '') || '/';
     const main = $('#main');
+    let matched = false;
     for (const [re, fn] of routes) {
       const m = hash.match(re);
-      if (m) { main.innerHTML = ''; const r = fn(main, ...m.slice(1)); if (typeof r === 'function') cleanup = r; break; }
+      if (m) {
+        matched = true; main.innerHTML = '';
+        try { const r = fn(main, ...m.slice(1)); if (typeof r === 'function') cleanup = r; }
+        catch (err) { showError(err, hash); }
+        break;
+      }
     }
+    if (!matched) main.innerHTML = '<h1>Página no encontrada</h1><p><a class="btn" href="#/">Ir al inicio</a></p>';
     $$('.nav a').forEach((a) => { const t = a.getAttribute('href').slice(1); a.classList.toggle('on', t === '/' ? hash === '/' : hash.startsWith(t)); });
     window.scrollTo(0, 0);
     const h1 = $('#main h1'); if (h1) { h1.setAttribute('tabindex', '-1'); h1.focus({ preventScroll: true }); }
   }
   window.addEventListener('hashchange', render);
+
+  /* Si algo falla, mostrarlo en pantalla en lugar de dejarla en blanco */
+  const VERSION = '1.0.2';
+  function showError(err, where) {
+    try { console.error(err); } catch (e) { }
+    const main = $('#main'); if (!main) return;
+    const msg = (err && (err.message || err.reason || String(err))) || 'Error desconocido';
+    const stack = err && err.stack ? String(err.stack).split('\n').slice(0, 3).join(' | ') : '';
+    main.innerHTML = `<h1>Algo salió mal</h1><p>Esta pantalla no se pudo mostrar. Tu avance no se perdió.</p>
+      <div class="card"><p class="small">Si se repite, toma captura de esta pantalla y compártela:</p>
+      <p class="small mono" style="word-break:break-word">v${VERSION} · ${esc(where || location.hash)} · ${esc(msg)}<br>${esc(stack)}<br>${esc(navigator.userAgent)}</p></div>
+      <div class="row wrap gap"><a class="btn" href="#/">Ir al inicio</a><button type="button" class="btn ghost" onclick="location.reload()">Recargar</button></div>`;
+  }
+  window.addEventListener('error', (e) => { if (!$('#main') || $('#main').children.length === 0) showError(e.error || e.message, 'global'); else toast('Ocurrió un error: ' + (e.message || '')); });
+  window.addEventListener('unhandledrejection', (e) => { toast('Ocurrió un error: ' + ((e.reason && e.reason.message) || '')); });
 
   /* ================= INICIO ================= */
   function planStatus(key) {
@@ -246,7 +268,8 @@
     const res = []; let i = 0; const t0 = Date.now(); let timer = null;
     const stage = $('#stage', el);
     if (opts.timer) { const tEl = $('.timer', el); timer = setInterval(() => { const s = Math.floor((Date.now() - t0) / 1000); tEl.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }, 1000); }
-    function show() {
+    function show() { try { showInner(); } catch (err) { if (timer) clearInterval(timer); showError(err, opts.mode); } }
+    function showInner() {
       if (i >= items.length) { if (timer) clearInterval(timer); return opts.done(items, res, Date.now() - t0); }
       const it = items[i]; const ti = Date.now();
       $('.marks', el).innerHTML = items.map((_, k) => `<i class="${k < i ? 'fill' : k === i ? 'cur' : ''}"></i>`).join('');
@@ -345,7 +368,7 @@
       <a class="card topic" href="#/respaldo"><h3>Mis datos y respaldo</h3><p class="muted small">Cómo conservar tu avance.</p></a>
       <a class="card topic" href="#/tutor"><h3>Panel del tutor</h3><p class="muted small">Qué explicaciones funcionan y qué errores se repiten.</p></a></div>
       <h2>Apariencia</h2><div class="seg" role="group"><button type="button" data-th="auto">Automático</button><button type="button" data-th="light">Claro</button><button type="button" data-th="dark">Oscuro</button></div>
-      <div id="install" class="mt"></div>`;
+      <div id="install" class="mt"></div><p class="small muted mt">Versión ${VERSION}</p>`;
     const btns = $$('[data-th]', el); const upd = () => btns.forEach((b) => b.classList.toggle('on', b.dataset.th === Store.d.settings.theme));
     btns.forEach((b) => b.addEventListener('click', () => { Store.d.settings.theme = b.dataset.th; Store.save(); applyTheme(); upd(); })); upd();
     installUI($('#install', el));
