@@ -44,7 +44,7 @@
   function toast(msg) { const el = $('#toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 3200); }
   const kindTag = (k) => `<span class="tag k-${k}">${KINDS[k].name}</span>`;
   function mastery(topic) {
-    const at = Store.d.attempts.filter((a) => a.topic === topic).slice(-10);
+    const at = Store.d.attempts.filter((a) => a.topic === topic && a.mode !== 'detective').slice(-10);
     if (at.length < 3) return null;
     return at.filter((a) => a.ok).length / at.length;
   }
@@ -95,7 +95,7 @@
   window.addEventListener('hashchange', render);
 
   /* Si algo falla, mostrarlo en pantalla en lugar de dejarla en blanco */
-  const VERSION = '1.0.2';
+  const VERSION = '2.0.0';
   function showError(err, where) {
     try { console.error(err); } catch (e) { }
     const main = $('#main'); if (!main) return;
@@ -114,6 +114,8 @@
     const d = Store.d;
     if (key === 'diag') return !!d.diag;
     if (key === 'sim') return d.sims.length > 0;
+    if (key === 'det') return d.attempts.filter((a) => a.mode === 'detective').length >= 6;
+    if (key === 'rep') return d.attempts.filter((a) => a.mode === 'repaso').length >= 8;
     const [k, topic] = key.split(':');
     if (k === 'lens') return Object.values(d.ratings).some((r) => r.topic === topic) || Object.keys(d.views).some((id) => (Content.lens(id) || {}).topic === topic);
     if (k === 'prac') return d.attempts.filter((a) => a.topic === topic && a.mode === 'practica').length >= 8;
@@ -146,6 +148,13 @@
       <h2>Temas del examen</h2><div class="grid">${TOPICS.filter((t) => t.kind === 'tema').map(topicCard).join('')}</div>
       <h2>Bases</h2><div class="grid">${TOPICS.filter((t) => t.kind === 'fund').map(topicCard).join('')}</div>`;
   });
+  function videoGroups(t) {
+    const groups = []; t.videos.forEach((v) => { let g = groups.find((x) => x.st === (v.st || 'Videos')); if (!g) { g = { st: v.st || 'Videos', vs: [] }; groups.push(g); } g.vs.push(v); });
+    return groups.map((g) => `<h3 class="vgroup">${g.st}</h3><div class="videos">${g.vs.map((v) => {
+      const vid = 'v:' + t.id + ':' + v.url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 80);
+      return `<div class="card video"><a href="${v.url}" target="_blank" rel="noopener" data-vid="${esc(vid)}"><b>${v.title}</b><span class="muted">${v.ch}</span>${v.v ? '<span class="tag">directo</span>' : ''}</a>${ratingBar(vid, { kind: 'video', topic: t.id, title: v.ch + ': ' + v.title })}</div>`;
+    }).join('')}</div>`).join('');
+  }
   route(/^\/tema\/(\w+)(?:\/(.+))?$/, (el, id, focusLens) => {
     const t = Content.byId(id); if (!t) { el.innerHTML = '<p>No encontrado.</p>'; return; }
     const pre = t.prereq.map((p) => Content.byId(p));
@@ -153,9 +162,9 @@
       <div class="row wrap gap">${dots(t.id)}<a class="btn" href="#/practica/${t.id}">Practicar</a>${t.lab.map((l) => `<a class="btn ghost" href="#/lab/${l}">${LAB[l].title}</a>`).join('')}</div>
       ${pre.length ? `<div class="banner info"><div>Si algo de aquí se complica, puede venir de una base: ${pre.map((p) => `<a href="#/tema/${p.id}">${p.title}</a>`).join(' · ')}</div></div>` : ''}
       <h2>Explicaciones</h2><p class="muted small">Abre las que quieras, en el orden que quieras. Al final de cada una, dinos si te ayudó.</p>
-      <div class="lenses">${t.lenses.map((l) => `<details class="lens card" id="lens-${l.id}" data-lid="${l.id}"${l.id === focusLens ? ' open' : ''}><summary>${kindTag(l.kind)}<span class="lt-title">${l.title}</span>${Store.d.ratings[l.id] ? '<span class="rated">valorada</span>' : ''}</summary><div class="lens-body">${l.html}${ratingBar(l.id, { kind: l.kind, topic: t.id, title: l.title })}</div></details>`).join('')}</div>
-      <h2>Videos</h2><p class="muted small">Distintos profes, distintas formas de explicar. Los marcados con <span class="tag">directo</span> abren un video específico; los demás abren una búsqueda en el canal.</p>
-      <div class="videos">${t.videos.map((v, i) => { const vid = 'v:' + t.id + ':' + i; return `<div class="card video"><a href="${v.url}" target="_blank" rel="noopener" data-vid="${vid}"><b>${v.title}</b><span class="muted">${v.ch}</span>${v.v ? '<span class="tag">directo</span>' : ''}</a>${ratingBar(vid, { kind: 'video', topic: t.id, title: v.ch + ': ' + v.title })}</div>`; }).join('')}</div>`;
+      <div class="lenses">${t.lenses.map((l) => `<details class="lens card" id="lens-${l.id}" data-lid="${l.id}"${l.id === focusLens ? ' open' : ''}><summary>${kindTag(l.kind)}<span class="lt-title">${l.title}</span>${Store.d.ratings[l.id] ? '<span class="rated">valorada</span>' : ''}</summary><div class="lens-body">${l.html}${tryBoxHTML(l, t.id)}${ratingBar(l.id, { kind: l.kind, topic: t.id, title: l.title })}</div></details>`).join('')}</div>
+      <h2>Videos</h2><p class="muted small">Distintos profes, distintas formas de explicar, ordenados por subtema. Los marcados con <span class="tag">directo</span> abren un video específico; los de “Más canales” abren una búsqueda en ese canal.</p>
+      ${videoGroups(t)}`;
     $$('details.lens', el).forEach((d) => d.addEventListener('toggle', () => { if (d.open) { const id = d.dataset.lid; Store.d.views[id] = (Store.d.views[id] || 0) + 1; Store.markDay(); Store.save(); } }));
     $$('[data-vid]', el).forEach((a) => a.addEventListener('click', () => { const id = a.dataset.vid; Store.d.views[id] = (Store.d.views[id] || 0) + 1; Store.save(); }));
     if (focusLens) { const d = $('#lens-' + focusLens, el); if (d) setTimeout(() => d.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); }
@@ -209,22 +218,24 @@
     el.innerHTML = `<h1>Práctica</h1><p class="muted">Cada respuesta incorrecta te dice <b>qué tipo de error</b> fue y te lleva a la explicación que lo resuelve. Los ejercicios se ajustan: aparece más lo que más cuesta.</p>
       <h2>Temas del examen</h2><div class="grid">${TOPICS.filter((t) => t.kind === 'tema').map(pracCard).join('')}</div>
       <h2>Bases</h2><div class="grid">${TOPICS.filter((t) => t.kind === 'fund').map(pracCard).join('')}</div>
-      <div class="row wrap gap mt"><a class="btn ghost" href="#/diagnostico">Diagnóstico corto</a><a class="btn ghost" href="#/simulacro">Simulacro de examen</a></div>`;
+      <h2>Entrenamientos especiales</h2><div class="grid">
+        <a class="card topic" href="#/practica/errores"><h3>Repaso de mis errores</h3><p class="muted small">Una ronda armada con lo que más te ha costado últimamente.</p></a>
+        <a class="card topic" href="#/detective"><h3>Detective de errores</h3><p class="muted small">Ejercicios ya resueltos con un paso equivocado. ¿Lo encuentras?</p></a>
+        <a class="card topic" href="#/diagnostico"><h3>Diagnóstico corto</h3><p class="muted small">12 ejercicios para saber por dónde empezar.</p></a>
+        <a class="card topic" href="#/simulacro"><h3>Simulacro de examen</h3><p class="muted small">15 ejercicios con calificación sobre 10.</p></a></div>`;
   });
   function pracCard(t) {
     const n = Store.d.attempts.filter((a) => a.topic === t.id).length;
     return `<a class="card topic" href="#/practica/${t.id}"><div class="row"><h3>${t.title}</h3>${dots(t.id)}</div><p class="muted small">${n} ejercicio${n === 1 ? '' : 's'} hechos</p></a>`;
   }
-  route(/^\/practica\/(\w+)(?:\/(\w+))?$/, (el, topic, only) => {
-    const t = Content.byId(topic); if (!t) return;
+  function practiceSession(el, P) {
     const S = { n: 0, ok: 0, streak: 0, best: 0, total: 8, marks: [] };
-    el.innerHTML = `<a class="back" href="#/practica">← Práctica</a><h1>${t.title}</h1>
-      <div class="chipsel" role="group" aria-label="tipo de ejercicio"><a class="pill ${!only ? 'on' : ''}" href="#/practica/${topic}">Mezcla</a>${t.subs.map((s) => `<a class="pill ${only === s ? 'on' : ''}" href="#/practica/${topic}/${s}">${Gen.SUBS[s].name}</a>`).join('')}</div>
+    el.innerHTML = `<a class="back" href="#/practica">← Práctica</a><h1>${P.title}</h1>${P.intro || ''}${P.chips || ''}
       <div class="progress"><div class="marks"></div><span class="streak"></span></div><div id="stage"></div>`;
     const stage = $('#stage', el);
     function next() {
       if (S.n >= S.total) return summary();
-      const it = Gen.make(pickSub(topic, only)); const t0 = Date.now();
+      const it = Gen.make(P.pick()); const t0 = Date.now();
       stage.innerHTML = `<div class="card item"><div class="prompt">${it.prompt}</div>${inputHTML(it)}<div class="row gap mt"><button type="button" class="btn" id="chk">Revisar</button><button type="button" class="btn ghost sm" id="skip">No sé</button></div><div id="fb"></div></div>`;
       const go = () => {
         const inp = readInput(stage, it); const r = it.check(inp);
@@ -238,7 +249,7 @@
     function finish(it, inp, r, t0) {
       S.n++; if (r.ok) { S.ok++; S.streak++; S.best = Math.max(S.best, S.streak); } else S.streak = 0;
       S.marks.push(r.ok);
-      Store.addAttempt({ id: uid(), t: Date.now(), topic: it.topic, sub: it.sub, ok: r.ok, err: r.err, mode: 'practica', ses: Store.d.settings.ses, ms: Date.now() - t0, q: strip(it.prompt).slice(0, 140), a: inp ? inputText(it, inp) : '(no sé)' });
+      Store.addAttempt({ id: uid(), t: Date.now(), topic: it.topic, sub: it.sub, ok: r.ok, err: r.err, mode: P.mode, ses: Store.d.settings.ses, ms: Date.now() - t0, q: strip(it.prompt).slice(0, 140), a: inp ? inputText(it, inp) : '(no sé)' });
       $('.marks', el).innerHTML = S.marks.map((m) => `<i class="${m ? 'ok' : 'no'}"></i>`).join('') + '<i></i>'.repeat(Math.max(0, S.total - S.marks.length));
       $('.streak', el).textContent = S.streak >= 3 ? S.streak + ' seguidas' : '';
       const card = $('.item', stage);
@@ -256,8 +267,100 @@
       const uniq = [...new Set(errs)];
       stage.innerHTML = `<div class="card"><h2>${S.ok} de ${S.total}</h2><p class="muted">${S.best >= 3 ? 'Mejor racha: ' + S.best + ' seguidas. ' : ''}${S.ok >= 7 ? 'Muy bien.' : S.ok >= 5 ? 'Vas bien; repasa lo de abajo.' : 'Vale la pena revisar las explicaciones de abajo antes de seguir.'}</p>
         ${uniq.length ? '<h3>Lo que más conviene repasar</h3><ul class="links">' + uniq.map((e) => { const E = Gen.ERR[e]; const L = E.lens && Content.lens(E.lens); return `<li><b>${E.t}</b>${L ? ` — <a href="#/tema/${L.topic}/${L.id}">${L.title}</a>` : ''}</li>`; }).join('') + '</ul>' : ''}
-        <div class="row gap mt wrap"><button type="button" class="btn" id="again">Otra ronda</button><a class="btn ghost" href="#/tema/${topic}">Explicaciones</a></div></div>`;
+        <div class="row gap mt wrap"><button type="button" class="btn" id="again">Otra ronda</button>${P.explHref ? `<a class="btn ghost" href="${P.explHref}">Explicaciones</a>` : ''}</div></div>`;
       $('#again', stage).addEventListener('click', () => { S.n = 0; S.ok = 0; S.streak = 0; S.marks = []; $('.marks', el).innerHTML = ''; next(); });
+    }
+    next();
+  }
+  // Errores recientes: qué tipos de ejercicio conviene repasar
+  function recentErrorSubs() {
+    const w = {};
+    Store.d.attempts.slice(-60).forEach((a) => { if (!a.ok && a.sub && Gen.SUBS[a.sub] && a.mode !== 'detective') w[a.sub] = (w[a.sub] || 0) + (a.err === 'SKIP' ? 1 : 2); });
+    return w;
+  }
+  function weightedPick(w) {
+    const keys = Object.keys(w); let r = Math.random() * keys.reduce((s, k) => s + w[k], 0);
+    for (const k of keys) { r -= w[k]; if (r <= 0) return k; }
+    return keys[keys.length - 1];
+  }
+  route(/^\/practica\/errores$/, (el) => {
+    let w = recentErrorSubs(); const empty = !Object.keys(w).length;
+    if (empty) { w = {}; Object.values(Gen.SIM).flat().forEach((k) => { w[k] = 1; }); }
+    const top = Object.entries(w).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k]) => Gen.SUBS[k].name);
+    practiceSession(el, {
+      title: 'Repaso de mis errores', mode: 'repaso', pick: () => weightedPick(w), explHref: '#/temas',
+      intro: `<p class="muted">${empty ? 'Todavía no hay errores registrados, así que esta ronda mezcla los tres temas.' : 'Esta ronda se arma con lo que más te ha costado últimamente: ' + top.join(' · ') + '.'}</p>`
+    });
+  });
+  route(/^\/practica\/(\w+)(?:\/(\w+))?$/, (el, topic, only) => {
+    const t = Content.byId(topic); if (!t) return;
+    practiceSession(el, {
+      title: t.title, mode: 'practica', pick: () => pickSub(topic, only), explHref: '#/tema/' + topic,
+      chips: `<div class="chipsel" role="group" aria-label="tipo de ejercicio"><a class="pill ${!only ? 'on' : ''}" href="#/practica/${topic}">Mezcla</a>${t.subs.map((s) => `<a class="pill ${only === s ? 'on' : ''}" href="#/practica/${topic}/${s}">${Gen.SUBS[s].name}</a>`).join('')}</div>`
+    });
+  });
+
+  /* ---------- Pruébalo: 3 ejercicios al final de cada explicación ---------- */
+  function lensTryStats(lid) { const at = Store.d.attempts.filter((a) => a.mode === 'lens' && a.lens === lid); return at.length ? { ok: at.filter((a) => a.ok).length, n: at.length } : null; }
+  function tryBoxHTML(l, topic) {
+    const st = lensTryStats(l.id);
+    return `<div class="tryit" data-lid="${l.id}" data-kind="${l.kind}" data-topic="${topic}"><div class="row wrap gap"><button type="button" class="btn sm" data-try>Pruébalo: 3 ejercicios</button><span class="small muted">${st ? 'Llevas ' + st.ok + ' de ' + st.n + ' con esta explicación' : 'Comprueba si esta forma de explicar te funciona'}</span></div></div>`;
+  }
+  function miniTry(box) {
+    const lid = box.dataset.lid, kind = box.dataset.kind, topic = box.dataset.topic;
+    const subs = (Content.LENS_SUBS && Content.LENS_SUBS[lid]) || Content.byId(topic).subs;
+    const N = 3; let k = 0, okc = 0;
+    function step() {
+      if (k >= N) {
+        box.innerHTML = `<div class="fb ${okc >= 2 ? 'good' : 'neutral'}"><b>${okc} de ${N}</b><p>${okc === N ? 'Esta explicación te funcionó muy bien.' : okc >= 2 ? 'Vas bien con esta explicación.' : 'Quizá otra explicación de este tema te funcione mejor. Prueba una de otro tipo.'}</p></div><button type="button" class="btn ghost sm mt" data-try>Otra vez</button>`;
+        $('[data-try]', box).addEventListener('click', () => { k = 0; okc = 0; step(); });
+        return;
+      }
+      const it = Gen.make(Gen.pick(subs)); const t0 = Date.now();
+      box.innerHTML = `<div class="item mini"><p class="small muted">${k + 1} de ${N}</p><div class="prompt">${it.prompt}</div>${inputHTML(it)}<div class="row gap mt"><button type="button" class="btn sm" data-chk>Revisar</button><button type="button" class="btn ghost sm" data-skip>No sé</button></div><div data-fb></div></div>`;
+      const done = (inp, r) => {
+        if (r.ok) okc++;
+        Store.addAttempt({ id: uid(), t: Date.now(), topic: it.topic, sub: it.sub, ok: r.ok, err: r.err, mode: 'lens', lens: lid, kind, ses: Store.d.settings.ses, ms: Date.now() - t0, q: strip(it.prompt).slice(0, 140), a: inp ? inputText(it, inp) : '(no sé)' });
+        $$('input,.opt,.pm,[data-chk],[data-skip]', box).forEach((x) => (x.disabled = true));
+        $('[data-fb]', box).innerHTML = (r.ok ? `<div class="fb good"><b>Correcto</b></div>` : (r.err === 'SKIP' ? '' : errBox(r, it)) + `<p class="small muted">Respuesta: <span class="mono">${it.answerText}</span></p><details class="sol"><summary>Ver solución</summary>${it.solution}</details>`) + `<button type="button" class="btn sm mt" data-nx>${k + 1 >= N ? 'Ver resultado' : 'Siguiente'}</button>`;
+        $('[data-nx]', box).addEventListener('click', () => { k++; step(); });
+      };
+      const go = () => { const inp = readInput(box, it); const r = it.check(inp); if (r.err === 'INVALID') { $('[data-fb]', box).innerHTML = `<div class="fb neutral">${Gen.ERR.INVALID.m}</div>`; return; } done(inp, r); };
+      $('[data-chk]', box).addEventListener('click', go);
+      $('[data-skip]', box).addEventListener('click', () => done(null, { ok: false, err: 'SKIP' }));
+      wireInputs(box, go);
+    }
+    step();
+  }
+  document.addEventListener('click', (e) => { const b = e.target.closest('.tryit [data-try]'); if (b && !b.closest('.tryit').dataset.running) { const box = b.closest('.tryit'); box.dataset.running = '1'; miniTry(box); } });
+
+  /* ---------- Detective de errores ---------- */
+  route(/^\/detective$/, (el) => {
+    const counts = {}; Store.d.attempts.slice(-80).forEach((a) => { if (!a.ok && a.err) counts[a.err] = (counts[a.err] || 0) + 1; });
+    const S = { n: 0, ok: 0, total: 6, marks: [] };
+    el.innerHTML = `<a class="back" href="#/practica">← Práctica</a><h1>Detective de errores</h1>
+      <p class="muted">Cada ejercicio ya está resuelto, pero <b>uno de los pasos tiene un error</b>. Encuéntralo. Entrenar el ojo para detectar errores ayuda a no cometerlos en el examen.</p>
+      <div class="progress"><div class="marks"></div></div><div id="stage"></div>`;
+    const stage = $('#stage', el);
+    function next() {
+      if (S.n >= S.total) {
+        stage.innerHTML = `<div class="card"><h2>${S.ok} de ${S.total}</h2><p class="muted">${S.ok >= 5 ? 'Tienes buen ojo.' : 'Revisa las explicaciones de los errores que se te pasaron.'}</p><div class="row gap mt wrap"><button type="button" class="btn" id="again">Otra ronda</button><a class="btn ghost" href="#/practica/errores">Repaso de mis errores</a></div></div>`;
+        $('#again', stage).addEventListener('click', () => { S.n = 0; S.ok = 0; S.marks = []; $('.marks', el).innerHTML = ''; next(); });
+        return;
+      }
+      const it = Detective.make(counts); const t0 = Date.now();
+      stage.innerHTML = `<div class="card item"><p class="small muted">Ejercicio</p><p class="expr det-expr">${it.prompt}</p><p><b>¿En qué paso está el error?</b></p>
+        <ol class="det-steps">${it.steps.map((s, i) => `<li><button type="button" class="det-step" data-i="${i}"><span class="det-n">${i + 1}</span><span>${s}</span></button></li>`).join('')}</ol><div id="fb"></div></div>`;
+      $$('.det-step', stage).forEach((b) => b.addEventListener('click', () => {
+        const i = Number(b.dataset.i); const ok = i === it.wrong;
+        S.n++; if (ok) S.ok++; S.marks.push(ok);
+        $('.marks', el).innerHTML = S.marks.map((m) => `<i class="${m ? 'ok' : 'no'}"></i>`).join('') + '<i></i>'.repeat(Math.max(0, S.total - S.marks.length));
+        Store.addAttempt({ id: uid(), t: Date.now(), topic: it.topic, sub: 'detective', ok, err: null, det: it.err, mode: 'detective', ses: Store.d.settings.ses, ms: Date.now() - t0, q: strip(it.prompt).slice(0, 140), a: 'paso ' + (i + 1) });
+        $$('.det-step', stage).forEach((x) => { x.disabled = true; const xi = Number(x.dataset.i); if (xi === it.wrong) x.classList.add('is-wrong'); else if (xi === i) x.classList.add('picked'); });
+        const E = Gen.ERR[it.err] || Gen.ERR.GENERIC; const L = E.lens && Content.lens(E.lens);
+        $('#fb', stage).innerHTML = `<div class="fb ${ok ? 'good' : 'bad'}"><b>${ok ? '¡Lo encontraste!' : 'El error estaba en el paso ' + (it.wrong + 1)}</b><p><b>${E.t}.</b> ${E.m}</p><p>Así debía quedar: ${it.fix}</p>${L ? `<a class="lnk" href="#/tema/${L.topic}/${L.id}">Ver explicación: ${L.title} →</a>` : ''}</div><div class="row mt"><button type="button" class="btn" id="nx">${S.n >= S.total ? 'Ver resumen' : 'Siguiente'}</button></div>`;
+        $('#nx', stage).addEventListener('click', next); $('#nx', stage).focus();
+      }));
     }
     next();
   });
@@ -366,7 +469,8 @@
       <a class="card topic" href="#/simulacro"><h3>Simulacro de examen</h3><p class="muted small">15 ejercicios con calificación sobre 10.</p></a>
       <a class="card topic" href="#/diagnostico"><h3>Diagnóstico corto</h3><p class="muted small">Para saber por dónde empezar.</p></a>
       <a class="card topic" href="#/respaldo"><h3>Mis datos y respaldo</h3><p class="muted small">Cómo conservar tu avance.</p></a>
-      <a class="card topic" href="#/tutor"><h3>Panel del tutor</h3><p class="muted small">Qué explicaciones funcionan y qué errores se repiten.</p></a></div>
+      <a class="card topic" href="#/tutor"><h3>Panel del tutor</h3><p class="muted small">Qué explicaciones funcionan y qué errores se repiten.</p></a>
+      <a class="card topic" href="#/informe"><h3>Informe para adecuar material</h3><p class="muted small">Resumen imprimible: qué le funciona, qué le cuesta y recomendaciones.</p></a></div>
       <h2>Apariencia</h2><div class="seg" role="group"><button type="button" data-th="auto">Automático</button><button type="button" data-th="light">Claro</button><button type="button" data-th="dark">Oscuro</button></div>
       <div id="install" class="mt"></div><p class="small muted mt">Versión ${VERSION}</p>`;
     const btns = $$('[data-th]', el); const upd = () => btns.forEach((b) => b.classList.toggle('on', b.dataset.th === Store.d.settings.theme));
@@ -457,49 +561,151 @@
     } else slot.innerHTML = '<p class="small muted">Sigue los pasos de tu dispositivo:</p>';
   }
 
+  /* ================= ANÁLISIS (panel e informe) ================= */
+  const EXAM = ['signos', 'exponentes', 'nc'];
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+  const solving = (a) => a.mode !== 'detective';
+  function dayKey(t) { const d = new Date(t); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  const dayLabel = (k) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' }); };
+  function evolution(A) {
+    const days = [...new Set(A.filter(solving).map((a) => dayKey(a.t)))].sort();
+    const series = EXAM.map((tp) => ({ tp, name: Content.byId(tp).title, pts: days.map((dk) => { const at = A.filter((a) => solving(a) && a.topic === tp && dayKey(a.t) === dk); return at.length >= 3 ? { dk, v: pct(at.filter((a) => a.ok).length, at.length), n: at.length } : null; }) }));
+    return { days, series };
+  }
+  function evoChart(ev) {
+    const W = 560, H = 230, pl = 36, pr = 92, pt = 14, pb = 30;
+    const n = ev.days.length; const X = (i) => pl + (n === 1 ? (W - pl - pr) / 2 : (i * (W - pl - pr)) / (n - 1)); const Y = (v) => pt + ((100 - v) * (H - pt - pb)) / 100;
+    let g = '';
+    [0, 50, 80, 100].forEach((v) => { g += `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" class="${v === 80 ? 'goal' : 'grid'}"/><text x="${pl - 6}" y="${Y(v) + 4}" class="ax" text-anchor="end">${v}%</text>`; });
+    g += `<text x="${pl + 4}" y="${Y(80) - 5}" class="ax">meta: 8</text>`;
+    ev.days.forEach((dk, i) => { g += `<text x="${X(i)}" y="${H - 8}" class="ax" text-anchor="middle">${dayLabel(dk)}</text>`; });
+    const lastY = [];
+    ev.series.forEach((s, si) => {
+      const pts = s.pts.map((p, i) => (p ? [X(i), Y(p.v), p] : null)).filter(Boolean);
+      if (!pts.length) return;
+      if (pts.length > 1) g += `<polyline class="ln s${si + 1}" points="${pts.map((p) => p[0] + ',' + p[1]).join(' ')}"/>`;
+      pts.forEach(([x, y, p]) => { g += `<circle class="pt s${si + 1}" cx="${x}" cy="${y}" r="5" data-tip="${esc(s.name + ' · ' + dayLabel(p.dk) + ': ' + p.v + '% de ' + p.n)}"/>`; });
+      const [lx, ly] = pts[pts.length - 1]; let yy = ly; while (lastY.some((v) => Math.abs(v - yy) < 13)) yy += 13; lastY.push(yy);
+      g += `<text x="${lx + 9}" y="${yy + 4}" class="dl">${s.name.split(' ').slice(-1)[0]}</text>`;
+    });
+    const legend = ev.series.map((s, si) => `<span><i class="sw s${si + 1}"></i>${s.name}</span>`).join('');
+    const rows = ev.days.map((dk, i) => `<tr><td>${dayLabel(dk)}</td>${ev.series.map((s) => `<td>${s.pts[i] ? s.pts[i].v + '% <span class="muted small">(' + s.pts[i].n + ')</span>' : '—'}</td>`).join('')}</tr>`).join('');
+    return `<div class="viz"><div class="legend">${legend}</div><div class="viz-wrap"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Porcentaje de aciertos por día en cada tema">${g}</svg><div class="tip" hidden></div></div>
+      <details class="mt"><summary>Ver como tabla</summary><div class="scroll"><table class="tbl"><tr><th>Día</th>${ev.series.map((s) => `<th>${s.name}</th>`).join('')}</tr>${rows}</table></div></details></div>`;
+  }
+  function wireTips(root) {
+    $$('.viz-wrap', root).forEach((w) => {
+      const tip = $('.tip', w);
+      const show = (c) => { const r = c.getBoundingClientRect(), wr = w.getBoundingClientRect(); tip.textContent = c.dataset.tip; tip.hidden = false; const hw = tip.offsetWidth / 2; tip.style.left = Math.min(wr.width - hw, Math.max(hw, r.left - wr.left + r.width / 2)) + 'px'; tip.style.top = (r.top - wr.top - 8) + 'px'; };
+      $$('[data-tip]', w).forEach((c) => { c.addEventListener('mouseenter', () => show(c)); c.addEventListener('click', () => show(c)); c.addEventListener('mouseleave', () => { tip.hidden = true; }); });
+    });
+  }
+  const RATE_SCORE = { si: 1, mas: 0.5, no: 0 };
+  function kindStats(d) {
+    const R = Object.values(d.ratings);
+    return Object.keys(KINDS).map((k) => {
+      const r = R.filter((x) => x.kind === k);
+      const tr = d.attempts.filter((a) => a.mode === 'lens' && a.kind === k);
+      const rs = r.length ? r.reduce((s, x) => s + (RATE_SCORE[x.v] || 0), 0) / r.length : null;
+      const ts = tr.length ? tr.filter((a) => a.ok).length / tr.length : null;
+      const parts = [rs, ts].filter((x) => x !== null);
+      return { k, r, si: r.filter((x) => x.v === 'si').length, mas: r.filter((x) => x.v === 'mas').length, no: r.filter((x) => x.v === 'no').length, tn: tr.length, tok: tr.filter((a) => a.ok).length, score: parts.length ? parts.reduce((a, b) => a + b, 0) / parts.length : null };
+    });
+  }
+  function errorTrend(A) {
+    const S = A.filter((a) => solving(a) && !a.ok && a.err && Gen.ERR[a.err] && !['INVALID', 'SKIP', 'GENERIC'].includes(a.err));
+    const mid = Math.floor(A.length / 2); const first = A.slice(0, mid), second = A.slice(mid);
+    const c = {}; S.forEach((a) => { c[a.err] = (c[a.err] || 0) + 1; });
+    return Object.entries(c).sort((a, b) => b[1] - a[1]).map(([e, n]) => ({ e, n, a1: first.filter((a) => a.err === e).length, a2: second.filter((a) => a.err === e).length, recent: A.slice(-30).filter((a) => a.err === e).length }));
+  }
+  const trendTxt = (t) => (t.a1 + t.a2 < 3 ? '' : t.a2 < t.a1 ? '<span class="good">bajando</span>' : t.a2 > t.a1 ? '<span class="warn-t">subiendo</span>' : 'igual');
+
   /* ================= PANEL DEL TUTOR ================= */
   route(/^\/tutor$/, (el) => {
-    const d = Store.d; const A = d.attempts;
-    const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+    const d = Store.d; const A = d.attempts; const AS = A.filter(solving);
     const bar = (p, label) => `<div class="hbar"><span style="--p:${p}%"></span><em>${label}</em></div>`;
-    // por tema
     const topicRows = TOPICS.map((t) => {
-      const at = A.filter((a) => a.topic === t.id); const ok = at.filter((a) => a.ok).length;
+      const at = AS.filter((a) => a.topic === t.id); const ok = at.filter((a) => a.ok).length;
       const last = at.slice(-10); const lok = last.filter((a) => a.ok).length;
       return at.length ? `<tr><td>${t.title}${t.kind === 'fund' ? ' <span class="tag">base</span>' : ''}</td><td>${at.length}</td><td>${bar(pct(ok, at.length), pct(ok, at.length) + '%')}</td><td>${bar(pct(lok, last.length), pct(lok, last.length) + '%')}</td></tr>` : '';
     }).join('');
-    // errores
-    const ec = {}; A.filter((a) => !a.ok && a.err && Gen.ERR[a.err] && a.err !== 'INVALID').forEach((a) => { ec[a.err] = (ec[a.err] || 0) + 1; });
-    const errRows = Object.entries(ec).sort((a, b) => b[1] - a[1]).map(([e, n]) => {
-      const recent = A.slice(-30).filter((a) => a.err === e).length;
-      return `<tr><td><b>${Gen.ERR[e].t}</b><br><span class="small muted">${Gen.ERR[e].m}</span></td><td>${n}</td><td>${recent}</td></tr>`;
+    const ev = evolution(A);
+    const tr = errorTrend(A);
+    const errRows = tr.map((t) => `<tr><td><b>${Gen.ERR[t.e].t}</b><br><span class="small muted">${Gen.ERR[t.e].m}</span></td><td>${t.n}</td><td>${t.recent}</td><td>${trendTxt(t) || '—'}</td></tr>`).join('');
+    const ks = kindStats(d).filter((x) => x.r.length || x.tn);
+    const kindRows = ks.map((x) => `<tr><td>${kindTag(x.k)}<br><span class="small muted">${KINDS[x.k].hint}</span></td><td>${x.r.length ? `<div class="stack"><span class="s-si" style="flex:${x.si}">${x.si || ''}</span><span class="s-mas" style="flex:${x.mas}">${x.mas || ''}</span><span class="s-no" style="flex:${x.no}">${x.no || ''}</span></div>` : '—'}</td><td>${x.tn ? bar(pct(x.tok, x.tn), pct(x.tok, x.tn) + '% de ' + x.tn) : '—'}</td></tr>`).join('');
+    const lensIds = [...new Set(Object.keys(d.ratings).concat(A.filter((a) => a.mode === 'lens').map((a) => a.lens)))];
+    const lensRows = lensIds.map((id) => {
+      const r = d.ratings[id]; const L = Content.lens(id); const st = lensTryStats(id);
+      const title = (r && r.title) || (L && L.title) || id; const kind = (r && r.kind) || (L && L.kind);
+      return `<tr><td>${esc(title)}</td><td>${KINDS[kind] ? KINDS[kind].name : ''}</td><td class="${r ? 'v-' + r.v : ''}">${r ? { si: 'Sí', mas: 'Más o menos', no: 'No' }[r.v] : '—'}</td><td>${st ? st.ok + '/' + st.n : '—'}</td><td>${d.views[id] || 0}</td></tr>`;
     }).join('');
-    // valoraciones por tipo
-    const R = Object.values(d.ratings);
-    const kindRows = Object.keys(KINDS).map((k) => {
-      const r = R.filter((x) => x.kind === k); if (!r.length) return '';
-      const si = r.filter((x) => x.v === 'si').length, mas = r.filter((x) => x.v === 'mas').length, no = r.filter((x) => x.v === 'no').length;
-      return `<tr><td>${kindTag(k)}<br><span class="small muted">${KINDS[k].hint}</span></td><td>${r.length}</td><td><div class="stack"><span class="s-si" style="flex:${si}">${si || ''}</span><span class="s-mas" style="flex:${mas}">${mas || ''}</span><span class="s-no" style="flex:${no}">${no || ''}</span></div></td></tr>`;
-    }).join('');
-    const lensRows = Object.entries(d.ratings).sort((a, b) => b[1].t - a[1].t).map(([id, r]) => `<tr><td>${esc(r.title || id)}</td><td>${KINDS[r.kind] ? KINDS[r.kind].name : ''}</td><td class="v-${r.v}">${{ si: 'Sí', mas: 'Más o menos', no: 'No' }[r.v]}</td><td>${d.views[id] || 0}</td></tr>`).join('');
-    // autónoma vs acompañada
-    const sesStat = (s) => { const at = A.filter((a) => a.ses === s); return at.length ? pct(at.filter((a) => a.ok).length, at.length) + '% de ' + at.length : '—'; };
+    const DT = A.filter((a) => a.mode === 'detective'); const dc = {};
+    DT.forEach((a) => { dc[a.det] = dc[a.det] || { n: 0, ok: 0 }; dc[a.det].n++; if (a.ok) dc[a.det].ok++; });
+    const detRows = Object.entries(dc).sort((a, b) => a[1].ok / a[1].n - b[1].ok / b[1].n).map(([e, v]) => `<tr><td>${Gen.ERR[e] ? Gen.ERR[e].t : e}</td><td>${v.ok} de ${v.n}</td></tr>`).join('');
+    const sesStat = (s) => { const at = AS.filter((a) => a.ses === s); return at.length ? pct(at.filter((a) => a.ok).length, at.length) + '% de ' + at.length : '—'; };
     const simRows = d.sims.map((s) => `<tr><td>${fdate(s.t)}</td><td><b>${s.grade.toFixed(1)}</b></td><td>${Object.entries(s.by).map(([tp, v]) => Content.byId(tp).title.split(' ').slice(-1)[0] + ' ' + v.ok + '/' + v.n).join(' · ')}</td><td>${Math.round(s.ms / 60000)} min</td><td>${s.ses === 'acompanada' ? 'con tutor' : 'por su cuenta'}</td></tr>`).join('');
-    const avgMs = (t) => { const at = A.filter((a) => a.topic === t && a.ms); return at.length ? Math.round(at.reduce((x, a) => x + a.ms, 0) / at.length / 1000) : null; };
+    const avgMs = (t) => { const at = AS.filter((a) => a.topic === t && a.ms); return at.length ? Math.round(at.reduce((x, a) => x + a.ms, 0) / at.length / 1000) : null; };
     el.innerHTML = `<h1>Panel del tutor</h1><p class="muted">Resumen del avance guardado en este dispositivo. Para ver el de otro dispositivo, importa su respaldo en <a href="#/respaldo">Mis datos</a>.</p>
-      <div class="stats card"><div><b>${d.days.length}</b><span>días</span></div><div><b>${A.length}</b><span>ejercicios</span></div><div><b>${pct(A.filter((a) => a.ok).length, A.length)}%</b><span>correctos</span></div><div><b>${d.sims.length ? d.sims[d.sims.length - 1].grade.toFixed(1) : '—'}</b><span>último simulacro</span></div></div>
+      <div class="stats card"><div><b>${d.days.length}</b><span>días</span></div><div><b>${AS.length}</b><span>ejercicios</span></div><div><b>${pct(AS.filter((a) => a.ok).length, AS.length)}%</b><span>correctos</span></div><div><b>${d.sims.length ? d.sims[d.sims.length - 1].grade.toFixed(1) : '—'}</b><span>último simulacro</span></div></div>
+      <div class="row wrap gap"><a class="btn" href="#/informe">Ver informe imprimible</a></div>
+      <div class="card"><h2>Evolución por día</h2><p class="small muted">Porcentaje de aciertos de cada tema del examen por día (solo días con 3 o más ejercicios del tema). La línea punteada es la meta de 8.</p>${ev.days.length && ev.series.some((s) => s.pts.some(Boolean)) ? evoChart(ev) : '<p class="muted">Aparecerá cuando haya práctica de los temas del examen.</p>'}</div>
       <div class="card"><h2>Por tema</h2>${topicRows ? `<div class="scroll"><table class="tbl"><tr><th>Tema</th><th>Ejercicios</th><th>Acierto total</th><th>Últimos 10</th></tr>${topicRows}</table></div>` : '<p class="muted">Sin ejercicios todavía.</p>'}
         <p class="small muted">Por su cuenta: ${sesStat('autonoma')} · Con tutor: ${sesStat('acompanada')}</p>
         <p class="small muted">Tiempo promedio por ejercicio: ${TOPICS.map((t) => { const m = avgMs(t.id); return m ? t.title + ' ' + m + ' s' : null; }).filter(Boolean).join(' · ') || '—'}</p></div>
-      <div class="card"><h2>Errores que se repiten</h2>${errRows ? `<div class="scroll"><table class="tbl"><tr><th>Tipo de error</th><th>Total</th><th>En los últimos 30</th></tr>${errRows}</table></div><p class="small muted">Si un error baja en “últimos 30”, se está corrigiendo.</p>` : '<p class="muted">Sin errores registrados.</p>'}</div>
-      <div class="card"><h2>Qué tipo de explicación le funciona</h2>${kindRows ? `<div class="scroll"><table class="tbl"><tr><th>Tipo</th><th>Valoradas</th><th>Sí · Más o menos · No</th></tr>${kindRows}</table></div>` : '<p class="muted">Todavía no hay valoraciones.</p>'}
-        ${lensRows ? `<details class="mt"><summary>Ver cada explicación</summary><div class="scroll"><table class="tbl"><tr><th>Explicación</th><th>Tipo</th><th>¿Ayudó?</th><th>Abierta</th></tr>${lensRows}</table></div></details>` : ''}</div>
+      <div class="card"><h2>Errores que se repiten</h2>${errRows ? `<div class="scroll"><table class="tbl"><tr><th>Tipo de error</th><th>Total</th><th>Últimos 30</th><th>Tendencia</th></tr>${errRows}</table></div><p class="small muted">La tendencia compara la primera mitad de los ejercicios con la segunda.</p>` : '<p class="muted">Sin errores registrados.</p>'}</div>
+      <div class="card"><h2>Qué tipo de explicación le funciona</h2><p class="small muted">Dos medidas: lo que ella dice (valoración) y lo que logra justo después (acierto en “Pruébalo”). Cuando no coinciden, pesa más el acierto.</p>${kindRows ? `<div class="scroll"><table class="tbl"><tr><th>Tipo</th><th>Sí · Más o menos · No</th><th>Acierto al probarla</th></tr>${kindRows}</table></div>` : '<p class="muted">Todavía no hay valoraciones ni pruebas.</p>'}
+        ${lensRows ? `<details class="mt"><summary>Ver cada explicación</summary><div class="scroll"><table class="tbl"><tr><th>Explicación</th><th>Tipo</th><th>¿Ayudó?</th><th>Pruébalo</th><th>Abierta</th></tr>${lensRows}</table></div></details>` : ''}</div>
+      <div class="card"><h2>Detective de errores</h2>${detRows ? `<p class="small muted">Qué errores reconoce cuando los ve resueltos. Los que no reconoce, primero.</p><div class="scroll"><table class="tbl"><tr><th>Error escondido</th><th>Lo encontró</th></tr>${detRows}</table></div>` : '<p class="muted">Todavía no usa el Detective.</p>'}</div>
       <div class="card"><h2>Diagnóstico y simulacros</h2>${d.diag ? `<p>Diagnóstico (${fdate(d.diag.t)}): <b>${d.diag.score} de ${d.diag.total}</b> — ${Object.entries(d.diag.by).map(([tp, v]) => Content.byId(tp).title + ' ' + v.ok + '/' + v.n).join(' · ')}</p>` : '<p class="muted">Diagnóstico pendiente.</p>'}
         ${simRows ? `<div class="scroll"><table class="tbl"><tr><th>Fecha</th><th>Calif.</th><th>Por tema</th><th>Tiempo</th><th>Sesión</th></tr>${simRows}</table></div>` : '<p class="muted">Sin simulacros.</p>'}</div>
       <div class="card"><h2>Notas del tutor</h2><textarea id="notes" rows="5" placeholder="Observaciones, acuerdos, qué funcionó en la sesión…">${esc(d.notes || '')}</textarea><p class="small muted">Se guardan en este dispositivo y viajan en el respaldo.</p></div>
       <div class="row wrap gap"><button type="button" class="btn" id="exc">Descargar tablas (CSV)</button><button type="button" class="btn ghost" id="exj">Descargar respaldo</button></div>`;
     let nt; $('#notes', el).addEventListener('input', (e) => { clearTimeout(nt); nt = setTimeout(() => { Store.d.notes = e.target.value; Store.save(); }, 400); });
     $('#exc', el).addEventListener('click', exportCSV); $('#exj', el).addEventListener('click', exportJSON);
+    wireTips(el);
+  });
+
+  /* ================= INFORME PARA ADECUAR MATERIAL ================= */
+  route(/^\/informe$/, (el) => {
+    const d = Store.d; const A = d.attempts; const AS = A.filter(solving);
+    if (AS.length < 5) { el.innerHTML = `<a class="back noprint" href="#/tutor">← Panel del tutor</a><h1>Informe</h1><p class="muted">Hace falta un poco más de práctica (al menos 5 ejercicios) para generar el informe.</p>`; return; }
+    const first = Math.min(...A.map((a) => a.t)), last = Math.max(...A.map((a) => a.t));
+    // Fortalezas y dificultades por tipo de ejercicio
+    const bySub = {}; AS.forEach((a) => { if (!Gen.SUBS[a.sub]) return; bySub[a.sub] = bySub[a.sub] || { n: 0, ok: 0, last: [] }; bySub[a.sub].n++; if (a.ok) bySub[a.sub].ok++; bySub[a.sub].last.push(a.ok); });
+    const subList = Object.entries(bySub).map(([s, v]) => ({ s, n: v.n, p: pct(v.ok, v.n), lp: pct(v.last.slice(-5).filter(Boolean).length, Math.min(5, v.last.length)) }));
+    const strong = subList.filter((x) => x.n >= 4 && x.lp >= 80).sort((a, b) => b.lp - a.lp);
+    const weak = subList.filter((x) => x.n >= 3 && x.lp < 60).sort((a, b) => a.lp - b.lp);
+    const ks = kindStats(d).filter((x) => x.score !== null).sort((a, b) => b.score - a.score);
+    const tr = errorTrend(A).filter((t) => t.recent >= 1 || t.n >= 3);
+    const liked = Object.values(d.ratings).filter((r) => r.v === 'si').map((r) => r.title);
+    const disliked = Object.values(d.ratings).filter((r) => r.v === 'no').map((r) => r.title);
+    const sesStat = (s) => { const at = AS.filter((a) => a.ses === s); return at.length >= 5 ? { p: pct(at.filter((a) => a.ok).length, at.length), n: at.length } : null; };
+    const sa = sesStat('autonoma'), sc = sesStat('acompanada');
+    const recs = [];
+    if (ks.length) recs.push(Content.KIND_RECS[ks[0].k]);
+    if (ks.length > 1 && ks[ks.length - 1].score < 0.5) recs.push('Usar con menos frecuencia el enfoque “' + KINDS[ks[ks.length - 1].k].name + '”, o solo como complemento.');
+    tr.slice(0, 5).forEach((t) => { if (Content.ERR_RECS[t.e]) recs.push(Content.ERR_RECS[t.e]); });
+    if (sa && sc && Math.abs(sa.p - sc.p) >= 15) recs.push(sc.p > sa.p ? 'Rinde notablemente mejor acompañada: conviene que las sesiones de temas nuevos sean con tutor y la práctica de consolidación por su cuenta.' : 'Rinde igual o mejor por su cuenta: dar espacio para practicar sola y usar las sesiones con tutor para revisar errores.');
+    const simTxt = d.sims.length ? d.sims.map((s) => s.grade.toFixed(1)).join(' → ') : 'sin simulacros';
+    el.innerHTML = `<div class="noprint row wrap gap"><a class="back" href="#/tutor">← Panel del tutor</a><button type="button" class="btn sm" onclick="window.print()">Imprimir o guardar PDF</button></div>
+      <article class="report">
+      <h1>Informe de aprendizaje</h1><p class="muted">Matemáticas · regla de los signos, leyes de los exponentes y notación científica<br>Del ${new Date(first).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })} al ${new Date(last).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })} · ${d.days.length} día${d.days.length === 1 ? '' : 's'} · ${AS.length} ejercicios · simulacros: ${simTxt}</p>
+      <h2>1. Cómo aprende mejor</h2>
+      ${ks.length ? `<ol>${ks.map((x) => `<li><b>${KINDS[x.k].name}</b> (${KINDS[x.k].hint.toLowerCase()}) — ${x.r.length ? 'valoración: ' + x.si + ' sí, ' + x.mas + ' más o menos, ' + x.no + ' no' : 'sin valoraciones'}${x.tn ? '; acierto justo después: ' + pct(x.tok, x.tn) + '% de ' + x.tn : ''}</li>`).join('')}</ol>` : '<p class="muted">Aún sin datos suficientes de valoraciones.</p>'}
+      ${liked.length ? `<p><b>Explicaciones que le ayudaron:</b> ${liked.map(esc).join(' · ')}</p>` : ''}
+      ${disliked.length ? `<p><b>Explicaciones que no le ayudaron:</b> ${disliked.map(esc).join(' · ')}</p>` : ''}
+      ${sa || sc ? `<p><b>Por su cuenta:</b> ${sa ? sa.p + '% de aciertos (' + sa.n + ')' : 'pocos datos'} · <b>Con tutor:</b> ${sc ? sc.p + '% (' + sc.n + ')' : 'pocos datos'}</p>` : ''}
+      <h2>2. Lo que ya domina</h2>
+      ${strong.length ? `<ul>${strong.map((x) => `<li>${Gen.SUBS[x.s].name} — ${x.lp}% en los últimos 5 (${x.n} en total)</li>`).join('')}</ul>` : '<p class="muted">Todavía ningún tipo de ejercicio con dominio consistente.</p>'}
+      <h2>3. Lo que todavía cuesta</h2>
+      ${weak.length ? `<ul>${weak.map((x) => `<li>${Gen.SUBS[x.s].name} — ${x.lp}% en los últimos intentos (${x.n} en total)</li>`).join('')}</ul>` : '<p class="muted">Sin dificultades marcadas en este momento.</p>'}
+      ${tr.length ? `<p><b>Errores frecuentes:</b></p><table class="tbl"><tr><th>Error</th><th>Veces</th><th>Tendencia</th></tr>${tr.map((t) => `<tr><td>${Gen.ERR[t.e].t}</td><td>${t.n}</td><td>${trendTxt(t) || '—'}</td></tr>`).join('')}</table>` : ''}
+      <h2>4. Recomendaciones para adecuar material</h2>
+      ${recs.length ? `<ul>${[...new Set(recs)].map((r) => `<li>${r}</li>`).join('')}</ul>` : '<p class="muted">Se generarán con más datos.</p>'}
+      ${d.notes ? `<h2>5. Notas del tutor</h2><p style="white-space:pre-wrap">${esc(d.notes)}</p>` : ''}
+      <p class="small muted mt">Generado por Brújula v${VERSION} el ${new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}. Las recomendaciones son automáticas a partir de los datos: úsalas como punto de partida.</p>
+      </article>`;
   });
 
   /* ================= ARRANQUE ================= */
