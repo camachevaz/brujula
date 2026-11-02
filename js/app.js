@@ -95,7 +95,7 @@
   window.addEventListener('hashchange', render);
 
   /* Si algo falla, mostrarlo en pantalla en lugar de dejarla en blanco */
-  const VERSION = '2.0.0';
+  const VERSION = '2.0.1';
   function showError(err, where) {
     try { console.error(err); } catch (e) { }
     const main = $('#main'); if (!main) return;
@@ -337,29 +337,50 @@
   /* ---------- Detective de errores ---------- */
   route(/^\/detective$/, (el) => {
     const counts = {}; Store.d.attempts.slice(-80).forEach((a) => { if (!a.ok && a.err) counts[a.err] = (counts[a.err] || 0) + 1; });
-    const S = { n: 0, ok: 0, total: 6, marks: [] };
+    const S = { n: 0, ok: 0, hint: 0, total: 6, marks: [] };
     el.innerHTML = `<a class="back" href="#/practica">← Práctica</a><h1>Detective de errores</h1>
-      <p class="muted">Cada ejercicio ya está resuelto, pero <b>uno de los pasos tiene un error</b>. Encuéntralo. Entrenar el ojo para detectar errores ayuda a no cometerlos en el examen.</p>
+      <p class="muted">Cada ejercicio ya está resuelto, pero en algún paso hubo una equivocación. Como un error <b>se arrastra</b> a los pasos que siguen, el resultado final también queda mal. Tu misión: encontrar <b>dónde empieza</b> el error.</p>
       <div class="progress"><div class="marks"></div></div><div id="stage"></div>`;
     const stage = $('#stage', el);
+    const drawMarks = () => { $('.marks', el).innerHTML = S.marks.map((m) => `<i class="${m === 2 ? 'ok' : m === 1 ? 'mid' : 'no'}"></i>`).join('') + '<i></i>'.repeat(Math.max(0, S.total - S.marks.length)); };
     function next() {
       if (S.n >= S.total) {
-        stage.innerHTML = `<div class="card"><h2>${S.ok} de ${S.total}</h2><p class="muted">${S.ok >= 5 ? 'Tienes buen ojo.' : 'Revisa las explicaciones de los errores que se te pasaron.'}</p><div class="row gap mt wrap"><button type="button" class="btn" id="again">Otra ronda</button><a class="btn ghost" href="#/practica/errores">Repaso de mis errores</a></div></div>`;
-        $('#again', stage).addEventListener('click', () => { S.n = 0; S.ok = 0; S.marks = []; $('.marks', el).innerHTML = ''; next(); });
+        stage.innerHTML = `<div class="card"><h2>${S.ok} de ${S.total} a la primera</h2><p class="muted">${S.hint ? S.hint + ' más con una pista. ' : ''}${S.ok >= 5 ? 'Tienes buen ojo.' : 'Revisa las explicaciones de los errores que se te pasaron.'}</p><div class="row gap mt wrap"><button type="button" class="btn" id="again">Otra ronda</button><a class="btn ghost" href="#/practica/errores">Repaso de mis errores</a></div></div>`;
+        $('#again', stage).addEventListener('click', () => { S.n = 0; S.ok = 0; S.hint = 0; S.marks = []; $('.marks', el).innerHTML = ''; next(); });
         return;
       }
-      const it = Detective.make(counts); const t0 = Date.now();
-      stage.innerHTML = `<div class="card item"><p class="small muted">Ejercicio</p><p class="expr det-expr">${it.prompt}</p><p><b>¿En qué paso está el error?</b></p>
-        <ol class="det-steps">${it.steps.map((s, i) => `<li><button type="button" class="det-step" data-i="${i}"><span class="det-n">${i + 1}</span><span>${s}</span></button></li>`).join('')}</ol><div id="fb"></div></div>`;
-      $$('.det-step', stage).forEach((b) => b.addEventListener('click', () => {
-        const i = Number(b.dataset.i); const ok = i === it.wrong;
-        S.n++; if (ok) S.ok++; S.marks.push(ok);
-        $('.marks', el).innerHTML = S.marks.map((m) => `<i class="${m ? 'ok' : 'no'}"></i>`).join('') + '<i></i>'.repeat(Math.max(0, S.total - S.marks.length));
-        Store.addAttempt({ id: uid(), t: Date.now(), topic: it.topic, sub: 'detective', ok, err: null, det: it.err, mode: 'detective', ses: Store.d.settings.ses, ms: Date.now() - t0, q: strip(it.prompt).slice(0, 140), a: 'paso ' + (i + 1) });
-        $$('.det-step', stage).forEach((x) => { x.disabled = true; const xi = Number(x.dataset.i); if (xi === it.wrong) x.classList.add('is-wrong'); else if (xi === i) x.classList.add('picked'); });
+      const it = Detective.make(counts); const t0 = Date.now(); const picks = [];
+      stage.innerHTML = `<div class="card item"><p class="small muted">Ejercicio</p><p class="expr det-expr">${it.prompt}</p><p><b>¿En qué paso empieza el error?</b></p>
+        <p class="hint">Ojo: los pasos de después también pueden verse mal, porque arrastran el error.</p>
+        <ol class="det-steps">${it.steps.map((s, i) => `<li><button type="button" class="det-step" data-i="${i}"><span class="det-n">${i + 1}</span><span class="det-txt">${s}</span></button></li>`).join('')}</ol><div id="fb"></div></div>`;
+      const btn = (i) => $(`.det-step[data-i="${i}"]`, stage);
+      function finish(found) {
+        const first = found && picks.length === 1;
+        S.n++; if (first) S.ok++; else if (found) S.hint++;
+        S.marks.push(first ? 2 : found ? 1 : 0); drawMarks();
+        Store.addAttempt({ id: uid(), t: Date.now(), topic: it.topic, sub: 'detective', ok: first, found, err: null, det: it.err, mode: 'detective', ses: Store.d.settings.ses, ms: Date.now() - t0, q: strip(it.prompt).slice(0, 140), a: 'pasos ' + picks.map((p) => p + 1).join(', ') });
+        $$('.det-step', stage).forEach((x) => {
+          x.disabled = true; const xi = Number(x.dataset.i);
+          if (xi === it.wrong) { x.classList.add('is-wrong'); $('.det-txt', x).insertAdjacentHTML('beforeend', ' <span class="det-lbl">aquí empieza</span>'); }
+          else if (xi > it.wrong) { x.classList.add('drag'); $('.det-txt', x).insertAdjacentHTML('beforeend', ' <span class="det-lbl">arrastra el error</span>'); }
+          else x.classList.add('fine');
+        });
         const E = Gen.ERR[it.err] || Gen.ERR.GENERIC; const L = E.lens && Content.lens(E.lens);
-        $('#fb', stage).innerHTML = `<div class="fb ${ok ? 'good' : 'bad'}"><b>${ok ? '¡Lo encontraste!' : 'El error estaba en el paso ' + (it.wrong + 1)}</b><p><b>${E.t}.</b> ${E.m}</p><p>Así debía quedar: ${it.fix}</p>${L ? `<a class="lnk" href="#/tema/${L.topic}/${L.id}">Ver explicación: ${L.title} →</a>` : ''}</div><div class="row mt"><button type="button" class="btn" id="nx">${S.n >= S.total ? 'Ver resumen' : 'Siguiente'}</button></div>`;
+        $('#fb', stage).innerHTML = `<div class="fb ${first ? 'good' : found ? 'neutral' : 'bad'}"><b>${first ? '¡Lo encontraste a la primera!' : found ? '¡Lo encontraste con la pista!' : 'El error empezaba en el paso ' + (it.wrong + 1)}</b><p><b>${E.t}.</b> ${E.m}</p><p>Así debía quedar: ${it.fix}</p>${L ? `<a class="lnk" href="#/tema/${L.topic}/${L.id}">Ver explicación: ${L.title} →</a>` : ''}</div><div class="row mt"><button type="button" class="btn" id="nx">${S.n >= S.total ? 'Ver resumen' : 'Siguiente'}</button></div>`;
         $('#nx', stage).addEventListener('click', next); $('#nx', stage).focus();
+      }
+      $$('.det-step', stage).forEach((b) => b.addEventListener('click', () => {
+        const i = Number(b.dataset.i); picks.push(i);
+        if (i === it.wrong) return finish(true);
+        if (picks.length >= 2) return finish(false);
+        b.disabled = true;
+        if (i > it.wrong) {
+          b.classList.add('drag');
+          $('#fb', stage).innerHTML = `<div class="fb neutral"><b>Casi.</b> Ese paso sí quedó mal, pero solo <b>arrastra</b> un error que viene de antes. ¿En qué paso empezó? Tienes otra oportunidad.</div>`;
+        } else {
+          b.classList.add('fine');
+          $('#fb', stage).innerHTML = `<div class="fb neutral"><b>Ese paso está bien.</b> El error empieza más abajo. Tienes otra oportunidad.</div>`;
+        }
       }));
     }
     next();
@@ -641,8 +662,8 @@
       return `<tr><td>${esc(title)}</td><td>${KINDS[kind] ? KINDS[kind].name : ''}</td><td class="${r ? 'v-' + r.v : ''}">${r ? { si: 'Sí', mas: 'Más o menos', no: 'No' }[r.v] : '—'}</td><td>${st ? st.ok + '/' + st.n : '—'}</td><td>${d.views[id] || 0}</td></tr>`;
     }).join('');
     const DT = A.filter((a) => a.mode === 'detective'); const dc = {};
-    DT.forEach((a) => { dc[a.det] = dc[a.det] || { n: 0, ok: 0 }; dc[a.det].n++; if (a.ok) dc[a.det].ok++; });
-    const detRows = Object.entries(dc).sort((a, b) => a[1].ok / a[1].n - b[1].ok / b[1].n).map(([e, v]) => `<tr><td>${Gen.ERR[e] ? Gen.ERR[e].t : e}</td><td>${v.ok} de ${v.n}</td></tr>`).join('');
+    DT.forEach((a) => { dc[a.det] = dc[a.det] || { n: 0, ok: 0, hint: 0 }; dc[a.det].n++; if (a.ok) dc[a.det].ok++; else if (a.found) dc[a.det].hint++; });
+    const detRows = Object.entries(dc).sort((a, b) => a[1].ok / a[1].n - b[1].ok / b[1].n).map(([e, v]) => `<tr><td>${Gen.ERR[e] ? Gen.ERR[e].t : e}</td><td>${v.ok} de ${v.n}${v.hint ? ` <span class="small muted">(+${v.hint} con pista)</span>` : ''}</td></tr>`).join('');
     const sesStat = (s) => { const at = AS.filter((a) => a.ses === s); return at.length ? pct(at.filter((a) => a.ok).length, at.length) + '% de ' + at.length : '—'; };
     const simRows = d.sims.map((s) => `<tr><td>${fdate(s.t)}</td><td><b>${s.grade.toFixed(1)}</b></td><td>${Object.entries(s.by).map(([tp, v]) => Content.byId(tp).title.split(' ').slice(-1)[0] + ' ' + v.ok + '/' + v.n).join(' · ')}</td><td>${Math.round(s.ms / 60000)} min</td><td>${s.ses === 'acompanada' ? 'con tutor' : 'por su cuenta'}</td></tr>`).join('');
     const avgMs = (t) => { const at = AS.filter((a) => a.topic === t && a.ms); return at.length ? Math.round(at.reduce((x, a) => x + a.ms, 0) / at.length / 1000) : null; };
@@ -656,7 +677,7 @@
       <div class="card"><h2>Errores que se repiten</h2>${errRows ? `<div class="scroll"><table class="tbl"><tr><th>Tipo de error</th><th>Total</th><th>Últimos 30</th><th>Tendencia</th></tr>${errRows}</table></div><p class="small muted">La tendencia compara la primera mitad de los ejercicios con la segunda.</p>` : '<p class="muted">Sin errores registrados.</p>'}</div>
       <div class="card"><h2>Qué tipo de explicación le funciona</h2><p class="small muted">Dos medidas: lo que ella dice (valoración) y lo que logra justo después (acierto en “Pruébalo”). Cuando no coinciden, pesa más el acierto.</p>${kindRows ? `<div class="scroll"><table class="tbl"><tr><th>Tipo</th><th>Sí · Más o menos · No</th><th>Acierto al probarla</th></tr>${kindRows}</table></div>` : '<p class="muted">Todavía no hay valoraciones ni pruebas.</p>'}
         ${lensRows ? `<details class="mt"><summary>Ver cada explicación</summary><div class="scroll"><table class="tbl"><tr><th>Explicación</th><th>Tipo</th><th>¿Ayudó?</th><th>Pruébalo</th><th>Abierta</th></tr>${lensRows}</table></div></details>` : ''}</div>
-      <div class="card"><h2>Detective de errores</h2>${detRows ? `<p class="small muted">Qué errores reconoce cuando los ve resueltos. Los que no reconoce, primero.</p><div class="scroll"><table class="tbl"><tr><th>Error escondido</th><th>Lo encontró</th></tr>${detRows}</table></div>` : '<p class="muted">Todavía no usa el Detective.</p>'}</div>
+      <div class="card"><h2>Detective de errores</h2>${detRows ? `<p class="small muted">Cuántas veces encontró a la primera dónde empieza cada error escondido. Los que menos reconoce, primero.</p><div class="scroll"><table class="tbl"><tr><th>Error escondido</th><th>Lo encontró</th></tr>${detRows}</table></div>` : '<p class="muted">Todavía no usa el Detective.</p>'}</div>
       <div class="card"><h2>Diagnóstico y simulacros</h2>${d.diag ? `<p>Diagnóstico (${fdate(d.diag.t)}): <b>${d.diag.score} de ${d.diag.total}</b> — ${Object.entries(d.diag.by).map(([tp, v]) => Content.byId(tp).title + ' ' + v.ok + '/' + v.n).join(' · ')}</p>` : '<p class="muted">Diagnóstico pendiente.</p>'}
         ${simRows ? `<div class="scroll"><table class="tbl"><tr><th>Fecha</th><th>Calif.</th><th>Por tema</th><th>Tiempo</th><th>Sesión</th></tr>${simRows}</table></div>` : '<p class="muted">Sin simulacros.</p>'}</div>
       <div class="card"><h2>Notas del tutor</h2><textarea id="notes" rows="5" placeholder="Observaciones, acuerdos, qué funcionó en la sesión…">${esc(d.notes || '')}</textarea><p class="small muted">Se guardan en este dispositivo y viajan en el respaldo.</p></div>
