@@ -1,4 +1,4 @@
-/* Brújula — laboratorio de interactivos */
+/* Brújula · Matemáticas — laboratorio de interactivos */
 (function (global) {
   'use strict';
   const M = '−';
@@ -217,5 +217,5 @@
     }
   };
 
-  global.LAB = LAB;
+  global.Brujula.addLabs('mat', LAB);
 })(window);

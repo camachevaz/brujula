@@ -1,0 +1,7 @@
+{
+  "comment": "Asignaturas disponibles. Para agregar una: crea su carpeta en modules/ y añádela aquí con sus archivos en orden de carga.",
+  "modules": [
+    { "id": "mat", "folder": "matematicas", "files": ["gen.js", "content.js", "content-f2.js", "detective.js", "lab.js"] },
+    { "id": "fis", "folder": "fisica", "files": ["gen.js", "content.js", "detective.js", "lab.js"] }
+  ]
+}

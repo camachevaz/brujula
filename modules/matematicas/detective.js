@@ -1,4 +1,4 @@
-/* Brújula — Detective de errores: soluciones con un paso equivocado */
+/* Brújula · Matemáticas — Detective de errores: soluciones con un paso equivocado */
 (function (global) {
   'use strict';
   const G = Gen; const { R, pick, fmt, par, sup, pw, nc, shiftDec, groupInt, M } = G;
@@ -144,5 +144,5 @@
     it.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     return it;
   }
-  global.Detective = { make, kinds: Object.keys(D), D };
+  global.Brujula.subject('mat', { detective: { make, kinds: Object.keys(D), D } });
 })(window);

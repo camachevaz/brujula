@@ -1,4 +1,4 @@
-/* Brújula — fase 2: explicaciones adicionales, videos por subtema y ejercicios de cada explicación */
+/* Brújula · Matemáticas — fase 2: explicaciones adicionales, videos por subtema y ejercicios de cada explicación */
 (function () {
   'use strict';
   const s = (e) => '<sup>' + e + '</sup>';
@@ -84,14 +84,14 @@
   Object.keys(NEW).forEach((tid) => { const t = T(tid); NEW[tid].forEach((l) => t.lenses.push(l)); });
 
   /* ---------- Ejercicios con los que se prueba cada explicación ---------- */
-  Content.LENS_SUBS = {
+  Object.assign(Content.LENS_SUBS, {
     'enteros-var': ['menosneg'], 'enteros-deudas': ['menosneg'], 'enteros-fichas': ['menosneg'], 'enteros-recta': ['menosneg'], 'enteros-opuesto': ['menosneg', 'eparentesis'], 'enteros-patron': ['menosneg'],
     'pos-punto': ['mult10'], 'pos-tabla': ['mult10'], 'pos-escalera': ['mult10'], 'pos-historia': ['mult10'],
     'exp-def': ['signobase', 'expand'], 'exp-uno': ['expand', 'producto'], 'exp-signo': ['signobase'], 'exp-patron1': ['expand', 'signobase'],
     'signos-quitar': ['parentesis'], 'signos-tabla': ['multdiv', 'parentesis'], 'signos-mult': ['multdiv'], 'signos-amigos': ['multdiv'], 'signos-decimales': ['decimales'], 'signos-color': ['parentesis'],
     'exp-tabla': ['producto', 'cociente', 'potpot'], 'exp-expand': ['producto', 'potpot', 'potprod'], 'exp-tachar': ['cociente'], 'exp-patron': ['cero', 'negativo'], 'exp-neg': ['negativo'],
     'nc-contexto': ['a_nc'], 'nc-grande': ['a_nc', 'a_decimal'], 'nc-norm': ['normalizar'], 'nc-ops': ['mult', 'div'], 'nc-suma': ['suma'], 'nc-casilla': ['a_nc', 'a_decimal'], 'nc-patron': ['a_decimal']
-  };
+  });
 
   /* ---------- Videos por subtema ---------- */
   const V = (st, title, id, ch) => ({ st, title, ch: ch || 'YouTube', url: yv(id), v: 1 });
@@ -142,14 +142,14 @@
   });
 
   /* ---------- Recomendaciones para el informe ---------- */
-  Content.KIND_RECS = {
+  Object.assign(Content.KIND_RECS, {
     historia: 'Presentar cada tema nuevo con una situación concreta (marcador de un partido, dinero, distancias, una receta) antes de dar la regla.',
     visual: 'Apoyarse en representaciones que se puedan ver y mover: recta numérica, fichas, tachar factores arriba y abajo, tabla de posiciones.',
     paso: 'Dar procedimientos numerados y cortos, en una tarjeta que pueda consultar; pedirle que escriba cada paso por separado.',
     patron: 'Mostrar tablas o secuencias para que descubra la regla antes de enunciarla; después formalizar.',
     video: 'Complementar con videos cortos, vistos con pausa y cuaderno, y comentar después qué entendió.'
-  };
-  Content.ERR_RECS = {
+  });
+  Object.assign(Content.ERR_RECS, {
     ABS_SUM: 'Signos con paréntesis: exigir un renglón intermedio “sin paréntesis” antes de agrupar; marcar cada pareja de signos con color.',
     MINUS_NEG: 'Menos de un negativo: practicar aparte −(−n) con contextos de “quitar algo malo” (gol anulado, deuda perdonada).',
     OP_IGNORED: 'Cuidar que lea el signo de afuera del paréntesis: encerrar en un círculo cada operador antes de resolver.',
@@ -179,11 +179,12 @@
     NC_DIV_EXP: 'División en notación científica: exponentes arriba menos abajo.',
     NC_EXP_SIGN: 'Operaciones con exponentes negativos: aplicar el paso “quitar paréntesis” de la regla de signos al restar exponentes.',
     NC_SUM_NOEQ: 'Suma en notación científica: igualar exponentes primero, o pasar a número completo si los exponentes son pequeños.'
-  };
+  });
 
   /* ---------- Plan: se suman las herramientas nuevas ---------- */
-  const dom = Content.PLAN.find((p) => p.day === 'Domingo');
-  const lun = Content.PLAN.find((p) => p.day === 'Lunes');
+  const PLAN = Brujula.subject('mat').plan;
+  const dom = PLAN.find((p) => p.day === 'Domingo');
+  const lun = PLAN.find((p) => p.day === 'Lunes');
   if (dom) dom.items.push({ t: 'Detective de errores', href: '#/detective', key: 'det' });
   if (lun) lun.items.splice(2, 0, { t: 'Repaso de mis errores', href: '#/practica/errores', key: 'rep' });
 })();

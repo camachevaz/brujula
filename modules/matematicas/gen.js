@@ -1,58 +1,7 @@
-/* Brújula — generadores de reactivos y detección de errores */
+/* Brújula · Matemáticas — generadores de ejercicios y detección de errores */
 (function (global) {
   'use strict';
-  const M = '−';
-  const R = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
-  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-  const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-  const sgn = () => (Math.random() < 0.5 ? -1 : 1);
-  const round = (x, d = 10) => { const f = Math.pow(10, d); return Math.round(x * f) / f; };
-  const eqRel = (a, b, tol = 1e-9) => {
-    if (typeof a !== 'number' || typeof b !== 'number' || isNaN(a) || isNaN(b)) return false;
-    if (a === b) return true;
-    const d = Math.abs(a - b), s = Math.max(Math.abs(a), Math.abs(b));
-    return d <= tol * s;
-  };
-
-  /* ---------- formato ---------- */
-  const groupInt = (s) => { const [i, f] = s.split('.'); const g = i.replace(/\B(?=(\d{3})+(?!\d))/g, ','); return f !== undefined ? g + '.' + f : g; };
-  function fmt(n) {
-    if (Object.is(n, -0)) n = 0;
-    n = round(n, 10);
-    const neg = n < 0;
-    const s = Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 10 });
-    return (neg ? M : '') + s;
-  }
-  // número entre paréntesis como lo escribe la maestra: ( −8 )
-  const par = (n) => '(' + fmt(n) + ')';
-  const sup = (e) => '<sup>' + (typeof e === 'number' ? fmt(e) : e) + '</sup>';
-  const pw = (b, e) => (e === 1 ? b : b + sup(e));
-  const nc = (c, e) => fmt(c) + ' × 10' + sup(e);
-
-  // Corre el punto decimal de una cadena positiva k lugares (k>0 derecha). Exacto.
-  function shiftDec(s, k) {
-    let [i, f = ''] = String(s).split('.');
-    let digits = i + f; let pos = i.length + k;
-    if (pos <= 0) { digits = '0'.repeat(1 - pos) + digits; pos = 1; }
-    if (pos > digits.length) digits = digits + '0'.repeat(pos - digits.length);
-    const ip = digits.slice(0, pos).replace(/^0+(?=\d)/, '');
-    const fp = digits.slice(pos).replace(/0+$/, '');
-    return fp ? ip + '.' + fp : ip;
-  }
-
-  function parseNum(raw) {
-    if (raw === null || raw === undefined) return NaN;
-    let s = String(raw).trim().replace(/[−–—]/g, '-').replace(/\s+/g, '');
-    if (!s) return NaN;
-    if (s.includes(',') && s.includes('.')) s = s.replace(/,/g, '');
-    else if (s.includes(',')) {
-      if (/^[+-]?\d{1,3}(,\d{3})+$/.test(s)) s = s.replace(/,/g, '');
-      else s = s.replace(',', '.');
-    }
-    if (!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(s)) return NaN;
-    return parseFloat(s);
-  }
-  const parseIntSafe = (raw) => { const v = parseNum(raw); return Number.isInteger(v) ? v : NaN; };
+  const { M, R, pick, shuffle, sgn, round, eqRel, groupInt, fmt, par, sup, pw, nc, shiftDec, parseNum, parseIntSafe } = global.Kit;
 
   /* ---------- catálogo de errores ---------- */
   const ERR = {
@@ -552,15 +501,14 @@
     div: { topic: 'nc', name: 'División', gen: genDiv },
     suma: { topic: 'nc', name: 'Suma y resta', gen: genSuma }
   };
-  function make(sub) { const it = SUBS[sub].gen(); it.sub = sub; it.topic = SUBS[sub].topic; it.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7); return it; }
-
   const DIAG = ['cadena', 'parentesis', 'menosneg', 'decimales', 'signobase', 'producto', 'cociente', 'negativo', 'mult10', 'a_nc', 'a_decimal', 'div'];
   const SIM = {
     signos: ['cadena', 'parentesis', 'parentesis', 'decimales', 'multdiv'],
     exponentes: ['producto', 'cociente', 'potpot', 'potprod', 'mixto'],
     nc: ['a_nc', 'a_decimal', 'mult', 'div', 'suma']
   };
+  delete ERR.INVALID; delete ERR.GENERIC; // los da el núcleo
 
-  const Gen = { R, pick, shuffle, round, eqRel, fmt, par, sup, pw, nc, shiftDec, groupInt, parseNum, parseIntSafe, ERR, SUBS, make, DIAG, SIM, M };
-  if (typeof module !== 'undefined' && module.exports) module.exports = Gen; else global.Gen = Gen;
+  global.Brujula.addExercises('mat', { ERR, SUBS });
+  global.Brujula.subject('mat', { diag: DIAG, sim: SIM });
 })(typeof window !== 'undefined' ? window : globalThis);

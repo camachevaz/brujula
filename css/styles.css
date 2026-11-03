@@ -281,3 +281,55 @@ textarea { width: 100%; font-size: .95rem; resize: vertical; }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
 @media (min-width: 721px) { #toast { bottom: 24px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .recta .arc { stroke-dashoffset: 0; } }
+
+/* v3: asignaturas */
+.brandwrap { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+.subj-chip { font-size: .78rem; font-weight: 700; text-decoration: none; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: .2rem .7rem; white-space: nowrap; }
+.subj-chip[hidden] { display: none; }
+.subj-name { font-weight: 700; color: var(--accent); margin: .2rem 0 .4rem; }
+.subj-seg { margin: .3rem 0 .6rem; }
+.exam-line { background: var(--warn-soft); border-radius: var(--r-sm); padding: .5rem .8rem; font-size: .93rem; margin: .5rem 0; }
+.subj-list { display: grid; gap: .6rem; margin: 1rem 0; }
+.subj-card { display: flex; gap: .8rem; align-items: flex-start; cursor: pointer; margin: 0; }
+.subj-card input { width: 22px; height: 22px; margin-top: .15rem; accent-color: var(--accent); flex-shrink: 0; }
+.subj-card > span { display: flex; flex-direction: column; gap: .15rem; }
+.subj-card .exam-line { margin: .3rem 0 0; }
+.answer .unit { font-size: 1.05rem; color: var(--muted); }
+.det-q { font-size: 1.05rem; margin: .2rem 0 .8rem; }
+
+/* física: soluciones y explicaciones */
+.fsol { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .5rem; margin: .4rem 0; }
+.fsol > div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: .4rem .6rem; font-size: .92rem; }
+.fsol > div > b { display: block; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: .1rem; }
+.fsol p { margin: .15rem 0; }
+.fu-line { font-size: 1.05rem; line-height: 2.2; }
+.fu-line .ifrac, .fu-big .ifrac { font-size: .9em; }
+.r3 { display: inline-grid; grid-template-columns: auto auto auto; gap: .2rem .8rem; font-family: var(--mono); background: var(--surface-2); padding: .5rem .9rem; border-radius: var(--r-sm); margin: .3rem 0; }
+.r3.big { font-size: 1.15rem; }
+.r3 .x { color: var(--accent); font-weight: 700; }
+.tri { width: 150px; height: auto; }
+.tri.big { width: 220px; }
+.tri-b { fill: none; stroke: var(--text); stroke-width: 2.5; stroke-linejoin: round; }
+.tri-t { font: 700 30px var(--mono); fill: var(--text); text-anchor: middle; }
+.tri-t.hl { fill: var(--accent); }
+.tri-cover { fill: transparent; }
+g[data-l] { cursor: pointer; }
+g.covered .tri-cover { fill: var(--accent); }
+g.covered .tri-t { fill: var(--accent-ink); }
+.tri-lab { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
+.dots-strip { position: relative; height: 54px; margin: .8rem 0 .4rem; border-bottom: 2px solid var(--line); }
+.dots-strip span { position: absolute; top: 6px; display: flex; flex-direction: column; align-items: center; transform: translateX(-6px); }
+.dots-strip i { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); display: block; }
+.dots-strip em { font-style: normal; font-size: .72rem; color: var(--muted); margin-top: .2rem; }
+.pista svg { width: 100%; height: auto; overflow: visible; }
+.pt-line { stroke: var(--line); stroke-width: 3; }
+.pl { fill: var(--muted); font: 12px var(--font); } .pl.c { text-anchor: middle; }
+.pu, .pa { animation: popin .3s ease both; animation-delay: var(--d); }
+.pu { fill: var(--pos); } .pa { fill: var(--neg); }
+@keyframes popin { from { opacity: 0; } to { opacity: 1; } }
+.fu-big { font-size: 1.25rem; line-height: 2.4; margin: .6rem 0; word-break: break-word; }
+.bad-u { color: var(--bad); font-weight: 700; text-decoration: underline wavy; }
+.wave { width: 100%; max-width: 420px; height: auto; display: block; margin: .4rem 0; }
+.w-eq { stroke: var(--muted); stroke-dasharray: 4 4; } .w-ln { fill: none; stroke: var(--accent); stroke-width: 3; }
+.w-t { fill: var(--text); font: 12px var(--font); } .w-pt { fill: var(--neg); } .w-ar { stroke: var(--neg); stroke-width: 1.5; }
+@media (prefers-reduced-motion: reduce) { .pu, .pa { opacity: 1; } }

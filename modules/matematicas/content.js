@@ -1,4 +1,4 @@
-/* Brújula — contenido: temas, enfoques (lentes) y videos */
+/* Brújula · Matemáticas — temas, explicaciones y videos */
 (function (global) {
   'use strict';
   const s = (e) => '<sup>' + e + '</sup>';
@@ -326,6 +326,12 @@
     { day: 'Lunes', items: [{ t: 'Notación científica', href: '#/tema/nc', key: 'lens:nc' }, { t: 'Practicar notación científica', href: '#/practica/nc', key: 'prac:nc' }, { t: 'Simulacro de examen', href: '#/simulacro', key: 'sim' }] }
   ];
 
-  const Content = { TOPICS, KINDS, PLAN, byId: (id) => TOPICS.find((t) => t.id === id), lens: (lid) => { for (const t of TOPICS) { const l = t.lenses.find((x) => x.id === lid); if (l) return { ...l, topic: t.id }; } return null; } };
-  global.Content = Content;
+  global.Brujula.subject('mat', {
+    name: 'Matemáticas', short: 'Mate', grade: '2.º de secundaria',
+    summary: 'Regla de los signos, leyes de los exponentes y notación científica.',
+    exam: { date: '2026-11-03', label: 'Examen de Matemáticas' },
+    examTopics: ['signos', 'exponentes', 'nc'],
+    plan: PLAN
+  });
+  global.Brujula.addTopics('mat', TOPICS);
 })(window);

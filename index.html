@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Brújula</title>
-<meta name="description" content="Explora signos, exponentes y notación científica de varias formas.">
+<meta name="description" content="Explora cada tema de varias formas: matemáticas, física y más.">
 <meta name="theme-color" content="#f6f5f2" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#16181c" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
@@ -12,12 +12,12 @@
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Brújula">
-<link rel="stylesheet" href="css/styles.css?v=2.0.1">
+<link rel="stylesheet" href="css/styles.css?v=3.0.0">
 </head>
 <body>
 <a class="skip" href="#main">Saltar al contenido</a>
 <header class="top">
-  <a class="brand" href="#/"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 6 L19.5 16 L16 26 L12.5 16 Z" fill="currentColor" opacity=".9"/><circle cx="16" cy="16" r="2" fill="var(--bg)"/></svg>Brújula</a>
+  <div class="brandwrap"><a class="brand" href="#/"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 6 L19.5 16 L16 26 L12.5 16 Z" fill="currentColor" opacity=".9"/><circle cx="16" cy="16" r="2" fill="var(--bg)"/></svg>Brújula</a><a class="subj-chip" id="subjChip" href="#/asignaturas" hidden></a></div>
   <nav class="nav" aria-label="principal">
     <a href="#/"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Inicio</span></a>
     <a href="#/temas"><svg viewBox="0 0 24 24"><path d="M4 5h7v14H4zM13 5h7v14h-7z"/></svg><span>Temas</span></a>
@@ -26,14 +26,12 @@
     <a href="#/mas"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg><span>Más</span></a>
   </nav>
 </header>
-<main id="main" tabindex="-1"></main>
+<main id="main" tabindex="-1"><p class="muted" style="padding:2rem 0">Cargando…</p></main>
 <div id="toast" role="status" aria-live="polite"></div>
 <noscript><p style="padding:2rem">Esta app necesita JavaScript activado.</p></noscript>
-<script src="js/gen.js?v=2.0.1"></script>
-<script src="js/content.js?v=2.0.1"></script>
-<script src="js/content-f2.js?v=2.0.1"></script>
-<script src="js/detective.js?v=2.0.1"></script>
-<script src="js/lab.js?v=2.0.1"></script>
-<script src="js/app.js?v=2.0.1"></script>
+<script>window.BRUJULA_VERSION = '3.0.0';</script>
+<script src="js/core/kit.js?v=3.0.0"></script>
+<script src="js/core/registry.js?v=3.0.0"></script>
+<script src="js/core/loader.js?v=3.0.0"></script>
 </body>
 </html>

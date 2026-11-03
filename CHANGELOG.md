@@ -4,6 +4,45 @@ Todos los cambios relevantes de Brújula. El formato sigue [Keep a Changelog](ht
 
 Para publicar una versión: sube todo el contenido de la carpeta y comprueba en **Más** que aparezca el número de versión nuevo. Si no aparece, cierra la app y vuelve a abrirla.
 
+## Herramientas — 2026-11-03
+La app no cambia (sigue siendo 3.0.0); solo `tools/repo.ps1`.
+- **Publicar en main** (opción 8 / `repo.bat publicar`): lleva la rama actual a `main`, integra antes lo que `main` tenga y no fuerza; ofrece dejar la carpeta en `main`.
+- **Sesión de GitHub** (opción 7 / `repo.bat sesion`): cambiar entre cuentas ya iniciadas, iniciar sesión con otra o cerrar sesión. El autor de los cambios sigue a la cuenta activa.
+- **Estado** muestra la cuenta de GitHub y el autor. *Conectar a otro repositorio* pasa a la opción 9.
+
+## [3.0.0] — 2026-11-02
+
+Versión modular: un núcleo común y una carpeta por asignatura. Primera asignatura nueva: **Física**.
+
+### Agregado
+- **Asignaturas como módulos** (`modules/<asignatura>/`), cargadas desde `modules/modules.json`. Para agregar una asignatura no hay que tocar `index.html` ni la app (instrucciones en el README).
+- **Mis asignaturas** (Más → Mis asignaturas): cada dispositivo elige qué asignaturas ve. La primera vez, la app pide elegir. A quien ya tenía avance, Inicio le muestra "Nueva asignatura disponible" con botones **Agregar** y **Ahora no**.
+- Selector de asignatura en Inicio, en el panel del tutor y en el informe, más una etiqueta con la asignatura actual en el encabezado.
+- Aviso con la fecha del examen de cada asignatura y los días que faltan.
+- Sección **“También en tu libro”** para temas que no entran al examen pero están en el libro.
+- **Módulo de Física** (examen: jueves 5 de noviembre):
+  - Temas del examen: *Factor unitario*, *Velocidad, distancia y tiempo* y *Aceleración*. Bases: *Regla de tres y equivalencias* (incluye horas y minutos) y *Despejar fórmulas*. Extra: *Ondas y sonido*.
+  - 27 explicaciones en los cuatro enfoques, 26 videos específicos por subtema y enlaces de búsqueda por canal.
+  - 15 tipos de ejercicio generados. Las soluciones siguen el formato de su cuaderno: Datos · Fórmula · Conversiones · Sustitución · Resultado.
+  - Reconoce 17 tipos de error, la mayoría tomados de su cuaderno: multiplicar en vez de dividir al convertir, equivocar la equivalencia, factor volteado, convertir solo una unidad, despeje equivocado (t = v·d), unidades mezcladas (minutos con m/s), falta la conversión final, horas y minutos (2 h 26 min ≠ 2.26 h), punto decimal recorrido, redondeo prematuro, vf − vi al revés, olvidar vi, signo al frenar, confundir datos (m/s² como velocidad) y frecuencia contra periodo.
+  - Detective de física con 13 casos basados en sus errores reales.
+  - Laboratorio: *Triángulo d · v · t*, *Pista: uniforme contra acelerado* y *Factor unitario: ¿se tachan?*.
+  - Diagnóstico de 10 ejercicios, simulacro de 12 (4 de factor unitario, 4 de velocidad y 4 de aceleración) y plan de martes a jueves.
+- Los ejercicios numéricos muestran la unidad junto a la casilla de respuesta.
+- La exportación CSV incluye la columna **asignatura**.
+- Herramientas para Windows: `probar.bat` (servidor local) y `repo.bat` + `tools/repo.ps1` (sincronizar la carpeta con GitHub usando git y GitHub CLI: conectar, traer, subir, ramas y versiones).
+
+### Cambiado
+- `js/gen.js`, `js/content.js`, `js/content-f2.js`, `js/detective.js` y `js/lab.js` pasaron a `modules/matematicas/` y se registran en el núcleo.
+- Nuevos archivos de núcleo: `js/core/kit.js`, `js/core/registry.js` y `js/core/loader.js`.
+- El panel del tutor, el informe, el plan, el diagnóstico, el simulacro, el Repaso de mis errores, el Detective y el Laboratorio funcionan por asignatura.
+- El diagnóstico se guarda por asignatura (`diagBy`). El de matemáticas se sigue guardando también en `diag` por compatibilidad con la v2.
+- El service worker precarga todas las asignaturas listadas en `modules.json`. Caché: `brujula-v3.0.0`.
+- La app ya no abre con doble clic en `index.html`; se necesita un servidor (ver README).
+
+### Migración
+- No se borra nada. Los intentos, simulacros y diagnóstico anteriores se asignan a **Matemáticas** al cargar. Un dispositivo con avance previo queda con Matemáticas activa y ve el aviso para agregar Física.
+
 ## [2.0.1] — 2026-11-01
 
 ### Corregido
