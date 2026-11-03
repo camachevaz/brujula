@@ -310,8 +310,7 @@
 
   const PLAN = [
     { day: 'Martes (tarde)', items: [{ t: 'Diagnóstico corto de física', href: '#/diagnostico', key: 'diag' }, { t: 'Factor unitario: explicaciones', href: '#/tema/f_conv', key: 'lens:f_conv' }, { t: 'Practicar factor unitario', href: '#/practica/f_conv', key: 'prac:f_conv' }] },
-    { day: 'Miércoles', items: [{ t: 'Despejar fórmulas', href: '#/tema/f_despeje', key: 'lens:f_despeje' }, { t: 'Practicar velocidad', href: '#/practica/f_vel', key: 'prac:f_vel' }, { t: 'Aceleración: explicaciones', href: '#/tema/f_acel', key: 'lens:f_acel' }, { t: 'Practicar aceleración', href: '#/practica/f_acel', key: 'prac:f_acel' }, { t: 'Simulacro de examen', href: '#/simulacro', key: 'sim' }] },
-    { day: 'Jueves (antes del examen)', items: [{ t: 'Detective de errores', href: '#/detective', key: 'det' }, { t: 'Repaso de mis errores', href: '#/practica/errores', key: 'rep' }] }
+    { day: 'Miércoles', items: [{ t: 'Despejar fórmulas', href: '#/tema/f_despeje', key: 'lens:f_despeje' }, { t: 'Practicar velocidad', href: '#/practica/f_vel', key: 'prac:f_vel' }, { t: 'Aceleración: explicaciones', href: '#/tema/f_acel', key: 'lens:f_acel' }, { t: 'Practicar aceleración', href: '#/practica/f_acel', key: 'prac:f_acel' }, { t: 'Simulacro de examen', href: '#/simulacro', key: 'sim' }] }
   ];
 
   Object.assign(Content.LENS_SUBS, {

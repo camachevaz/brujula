@@ -4,6 +4,12 @@ Todos los cambios relevantes de Brújula. El formato sigue [Keep a Changelog](ht
 
 Para publicar una versión: sube todo el contenido de la carpeta y comprueba en **Más** que aparezca el número de versión nuevo. Si no aparece, cierra la app y vuelve a abrirla.
 
+## [3.0.1] — 2026-11-03
+
+### Cambiado
+- Física: el plan termina el **miércoles**. Se quitó el día del examen (jueves) porque las clases empiezan temprano y no hay tiempo de estudiar antes; así el plan no se siente como una tarea pendiente. El Detective y el Repaso de mis errores siguen disponibles en Práctica.
+- Caché del service worker: `brujula-v3.0.1`.
+
 ## Herramientas — 2026-11-03
 La app no cambia (sigue siendo 3.0.0); solo `tools/repo.ps1`.
 - **Publicar en main** (opción 8 / `repo.bat publicar`): lleva la rama actual a `main`, integra antes lo que `main` tenga y no fuerza; ofrece dejar la carpeta en `main`.
@@ -27,7 +33,7 @@ Versión modular: un núcleo común y una carpeta por asignatura. Primera asigna
   - Reconoce 17 tipos de error, la mayoría tomados de su cuaderno: multiplicar en vez de dividir al convertir, equivocar la equivalencia, factor volteado, convertir solo una unidad, despeje equivocado (t = v·d), unidades mezcladas (minutos con m/s), falta la conversión final, horas y minutos (2 h 26 min ≠ 2.26 h), punto decimal recorrido, redondeo prematuro, vf − vi al revés, olvidar vi, signo al frenar, confundir datos (m/s² como velocidad) y frecuencia contra periodo.
   - Detective de física con 13 casos basados en sus errores reales.
   - Laboratorio: *Triángulo d · v · t*, *Pista: uniforme contra acelerado* y *Factor unitario: ¿se tachan?*.
-  - Diagnóstico de 10 ejercicios, simulacro de 12 (4 de factor unitario, 4 de velocidad y 4 de aceleración) y plan de martes a jueves.
+  - Diagnóstico de 10 ejercicios, simulacro de 12 (4 de factor unitario, 4 de velocidad y 4 de aceleración) y plan de martes a jueves (desde 3.0.1, martes y miércoles).
 - Los ejercicios numéricos muestran la unidad junto a la casilla de respuesta.
 - La exportación CSV incluye la columna **asignatura**.
 - Herramientas para Windows: `probar.bat` (servidor local) y `repo.bat` + `tools/repo.ps1` (sincronizar la carpeta con GitHub usando git y GitHub CLI: conectar, traer, subir, ramas y versiones).

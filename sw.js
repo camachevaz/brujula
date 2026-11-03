@@ -1,6 +1,6 @@
 /* Brújula — service worker: funciona sin conexión. Precarga el núcleo y todas las asignaturas de modules/modules.json */
-const CACHE = 'brujula-v3.0.0';
-const V = '?v=3.0.0';
+const CACHE = 'brujula-v3.0.1';
+const V = '?v=3.0.1';
 const CORE = ['./', 'index.html', 'css/styles.css' + V, 'js/core/kit.js' + V, 'js/core/registry.js' + V, 'js/core/loader.js' + V, 'js/app.js' + V, 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-180.png', 'icons/maskable-512.png'];
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {

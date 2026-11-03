@@ -134,7 +134,7 @@
   window.addEventListener('hashchange', render);
 
   /* Si algo falla, mostrarlo en pantalla en lugar de dejarla en blanco */
-  const VERSION = '3.0.0';
+  const VERSION = '3.0.1';
   function showError(err, where) {
     try { console.error(err); } catch (e) { }
     const main = $('#main'); if (!main) return;
