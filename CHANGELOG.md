@@ -4,6 +4,12 @@ Todos los cambios relevantes de Brújula. El formato sigue [Keep a Changelog](ht
 
 Para publicar una versión: sube todo el contenido de la carpeta y comprueba en **Más** que aparezca el número de versión nuevo. Si no aparece, cierra la app y vuelve a abrirla.
 
+## [3.1.1] — 2026-11-04
+
+### Corregido
+- **Sonidos de fondo con altibajos.** Cada ruido era un fragmento corto (6 a 12 s) que se repetía en bucle: en cada unión el volumen bajaba casi 2 dB y la repetición se oía como un vaivén. Ahora el ruido se genera en tiempo real (AudioWorklet), sin fragmentos que se repitan: el volumen del ruido blanco varía menos de 0.2 dB. En navegadores sin AudioWorklet se usa un fragmento de 24 s (40 s las olas) con una unión que no baja el volumen.
+- Caché del service worker: `brujula-v3.1.1`.
+
 ## [3.1.0] — 2026-11-04
 
 ### Agregado
