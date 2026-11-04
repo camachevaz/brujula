@@ -4,6 +4,23 @@ Todos los cambios relevantes de Brújula. El formato sigue [Keep a Changelog](ht
 
 Para publicar una versión: sube todo el contenido de la carpeta y comprueba en **Más** que aparezca el número de versión nuevo. Si no aparece, cierra la app y vuelve a abrirla.
 
+## [3.1.0] — 2026-11-04
+
+### Agregado
+- **Enfoque** (botón con audífonos arriba a la derecha, o Más → Enfoque y sonidos):
+  - **Bloques de estudio** de 15, 25 o 40 minutos con descanso (5, 5 o 10). Una barra abajo muestra el tiempo restante, con pausa. Al terminar el bloque y el descanso suena un aviso suave. Si se recarga la app, el bloque sigue donde iba.
+  - **Pantalla sin distracciones** (opcional, activada de inicio): durante el bloque se ocultan el menú, avisos, rachas, estadísticas y la fecha del examen. El botón ☰ de la barra muestra el menú cuando hace falta.
+  - **Sonido de fondo**: ruido blanco, rosa y café, lluvia y olas. Se generan en la app (no descargan nada y funcionan sin internet), siguen sonando al cambiar de pantalla y tienen control de volumen. Se pueden usar con o sin bloque.
+- **Panel del tutor → Enfoque**: bloques completos e interrumpidos y minutos por día; con datos suficientes compara los aciertos dentro y fuera de los bloques. El informe lo resume y agrega una recomendación si la diferencia es grande.
+- Cada ejercicio hecho durante un bloque queda marcado. La exportación CSV agrega la columna **enfoque** y un archivo `brujula-enfoque-AAAA-MM-DD.csv` con las sesiones. El respaldo JSON incluye las sesiones y la importación las combina.
+- Archivo nuevo: `js/core/sound.js`.
+
+### Corregido
+- En celular, la barra de navegación aparecía arriba tapando el encabezado (y la etiqueta de la asignatura). Ahora queda abajo, como estaba pensada.
+
+### Cambiado
+- Caché del service worker: `brujula-v3.1.0`.
+
 ## [3.0.1] — 2026-11-03
 
 ### Cambiado

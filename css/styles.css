@@ -333,3 +333,49 @@ g.covered .tri-t { fill: var(--accent-ink); }
 .w-eq { stroke: var(--muted); stroke-dasharray: 4 4; } .w-ln { fill: none; stroke: var(--accent); stroke-width: 3; }
 .w-t { fill: var(--text); font: 12px var(--font); } .w-pt { fill: var(--neg); } .w-ar { stroke: var(--neg); stroke-width: 1.5; }
 @media (prefers-reduced-motion: reduce) { .pu, .pa { opacity: 1; } }
+
+/* ================= Enfoque y sonidos ================= */
+.focus-btn { display: inline-flex; align-items: center; gap: .35rem; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 999px; padding: .35rem .75rem; font: inherit; font-size: .9rem; cursor: pointer; min-height: 38px; }
+.focus-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.focus-btn:hover { border-color: var(--accent); }
+body.has-fbar .focus-btn { border-color: var(--accent); color: var(--accent); }
+.focusbar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 1rem; z-index: 20; width: min(560px, calc(100% - 1.5rem)); }
+.fb-in { display: flex; align-items: center; gap: .4rem; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: .3rem .35rem .3rem .9rem; box-shadow: 0 4px 18px rgba(0,0,0,.12); position: relative; overflow: hidden; }
+.fb-in::after { content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: var(--fp, 0%); background: var(--accent); transition: width 1s linear; }
+.fb-time { flex: 1; display: flex; align-items: baseline; gap: .55rem; border: 0; background: none; color: var(--text); font: inherit; cursor: pointer; text-align: left; padding: .2rem 0; min-height: 40px; }
+.fb-time b { font-family: var(--mono); font-size: 1.15rem; } .fb-time b.fb-snd { font-family: var(--font); font-size: 1rem; }
+.fb-lbl { font-size: .85rem; color: var(--muted); }
+.fb-in > .fb-lbl { flex: 1; }
+.fb-icon { width: 42px; height: 42px; flex-shrink: 0; border-radius: 50%; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font-size: 1rem; cursor: pointer; display: inline-grid; place-items: center; }
+.fb-icon.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+body.has-fbar { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+@media (max-width: 720px) {
+  /* backdrop-filter convierte al encabezado en el contenedor de lo fijo y la barra de navegación quedaba arriba, tapando el encabezado */
+  .top { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--bg); }
+  .focusbar { bottom: calc(66px + env(safe-area-inset-bottom)); }
+  .focus-btn span { display: none; } .focus-btn { padding: .35rem .55rem; }
+}
+.focuspanel { border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); color: var(--text); padding: 1rem 1.2rem 1.3rem; width: min(560px, calc(100% - 1.5rem)); max-height: calc(100% - 2rem); overflow: auto; }
+.focuspanel::backdrop { background: rgba(0,0,0,.45); }
+.focuspanel section { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: .8rem 1rem; margin: .7rem 0; }
+.focuspanel h3 { margin: 0 0 .4rem; }
+.fp-head { display: flex; align-items: center; justify-content: space-between; } .fp-head h2 { margin: 0; }
+.fp-big { font-size: 1.1rem; margin: .3rem 0 .7rem; } .fp-big b { font-family: var(--mono); font-size: 1.6rem; }
+.fp-check { display: flex; gap: .5rem; align-items: center; margin-top: .7rem; font-size: .95rem; }
+.fp-check input { width: 20px; height: 20px; }
+.snd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .5rem; }
+.snd-grid button { text-align: left; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); border-radius: var(--r-sm); padding: .55rem .7rem; font: inherit; cursor: pointer; min-height: 56px; }
+.snd-grid button span { display: block; font-size: .8rem; color: var(--muted); }
+.snd-grid button.sel { border-color: var(--accent); }
+.snd-grid button.on { background: var(--accent-soft); }
+.snd-grid button.on b::after { content: " ♪"; color: var(--accent); }
+.vol { display: inline-flex; align-items: center; gap: .5rem; font-size: .92rem; } .vol input { width: 150px; }
+.card.as-link { display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+/* Pantalla sin distracciones mientras corre un bloque */
+body.focus-clean:not(.nav-peek) .nav { display: none; }
+body.focus-clean .banner, body.focus-clean .stats, body.focus-clean .streak, body.focus-clean .hero, body.focus-clean .exam-line, body.focus-clean .subj-chip { display: none !important; }
+@media (max-width: 720px) { body.focus-clean:not(.nav-peek) .focusbar { bottom: calc(1rem + env(safe-area-inset-bottom)); } }
+@media print { .focusbar, .focus-btn, .focuspanel { display: none !important; } }
+body.has-fbar #toast { bottom: calc(140px + env(safe-area-inset-bottom)); }
+.fb-in > .fb-lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fb-in .btn.sm { white-space: nowrap; }

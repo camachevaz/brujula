@@ -29,6 +29,7 @@ index.html
 css/styles.css
 js/core/kit.js        utilidades compartidas (números, formato, lectura de respuestas)
 js/core/registry.js   registro de asignaturas: Brujula, Content, Gen, LAB
+js/core/sound.js      sonidos de fondo generados con Web Audio (ruidos, lluvia, olas) y aviso de fin de bloque
 js/core/loader.js     lee modules/modules.json, carga cada asignatura y arranca la app
 js/app.js             la app (rutas, práctica, diagnóstico, simulacro, panel, informe, respaldo)
 modules/modules.json  lista de asignaturas y sus archivos (en orden de carga)
@@ -65,3 +66,4 @@ Cada ejercicio generado devuelve `{ type: 'num'|'exp'|'nc'|'mc', prompt, answerT
 - Se guardan en `localStorage` con la clave `brujula.v1` (la misma desde la v1: actualizar no borra nada).
 - Cada intento guarda `subject`. Los datos anteriores a la v3 se asignan a Matemáticas al cargar.
 - Cada dispositivo elige sus asignaturas en **Más → Mis asignaturas**. Ocultar una no borra su avance.
+- Enfoque: `focus` guarda las sesiones (`{t, end, min, plan, done, subject}`), `focusNow` el bloque en curso y los intentos hechos durante un bloque llevan `focus: 1`.

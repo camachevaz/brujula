@@ -14,19 +14,20 @@
   const KEY = 'brujula.v1';
   const Store = {
     d: null,
-    blank() { return { v: 3, created: Date.now(), attempts: [], ratings: {}, views: {}, diag: null, diagBy: {}, sims: [], days: [], notes: '', settings: { theme: 'auto', ses: 'autonoma' }, lastExport: null }; },
+    blank() { return { v: 3, created: Date.now(), attempts: [], ratings: {}, views: {}, diag: null, diagBy: {}, sims: [], days: [], notes: '', focus: [], focusNow: null, settings: { theme: 'auto', ses: 'autonoma' }, lastExport: null }; },
     load() {
       try { const raw = localStorage.getItem(KEY); this.d = raw ? Object.assign(this.blank(), JSON.parse(raw)) : this.blank(); }
       catch (e) { this.d = this.blank(); this.broken = true; }
       this.d.settings = Object.assign({ theme: 'auto', ses: 'autonoma' }, this.d.settings || {});
       // Migración desde la v2: todo lo anterior era de matemáticas
       if (!this.d.diagBy) this.d.diagBy = {};
+      if (!Array.isArray(this.d.focus)) this.d.focus = [];
       if (this.d.diag && !this.d.diagBy.mat) this.d.diagBy.mat = this.d.diag;
       if (!this.d.settings.subjects && this.d.attempts.length) { this.d.settings.subjects = ['mat']; this.d.settings.subject = 'mat'; }
     },
     save() { try { localStorage.setItem(KEY, JSON.stringify(this.d)); this.broken = false; } catch (e) { this.broken = true; toast('No se pudo guardar en este dispositivo. Exporta un respaldo.'); } },
     markDay() { const t = today(); if (!this.d.days.includes(t)) { this.d.days.push(t); } },
-    addAttempt(a) { a.subject = a.subject || subjOfTopic(a.topic); this.d.attempts.push(a); this.markDay(); this.save(); },
+    addAttempt(a) { a.subject = a.subject || subjOfTopic(a.topic); if (F.studying()) a.focus = 1; this.d.attempts.push(a); this.markDay(); this.save(); },
     rate(id, v, meta) { this.d.ratings[id] = Object.assign({ v, t: Date.now() }, meta); this.markDay(); this.save(); }
   };
   Store.load();
@@ -134,7 +135,7 @@
   window.addEventListener('hashchange', render);
 
   /* Si algo falla, mostrarlo en pantalla en lugar de dejarla en blanco */
-  const VERSION = '3.0.1';
+  const VERSION = '3.1.0';
   function showError(err, where) {
     try { console.error(err); } catch (e) { }
     const main = $('#main'); if (!main) return;
@@ -551,6 +552,7 @@
     el.innerHTML = `<h1>Más</h1><div class="grid">
       <a class="card topic" href="#/simulacro"><h3>Simulacro de examen</h3><p class="muted small">15 ejercicios con calificación sobre 10.</p></a>
       <a class="card topic" href="#/diagnostico"><h3>Diagnóstico corto</h3><p class="muted small">Para saber por dónde empezar.</p></a>
+      <button type="button" class="card topic as-link" id="openFocus"><h3>Enfoque y sonidos</h3><p class="muted small">Bloques de estudio con descanso y ruido de fondo (lluvia, olas…).</p></button>
       <a class="card topic" href="#/asignaturas"><h3>Mis asignaturas</h3><p class="muted small">Elige qué asignaturas aparecen en este dispositivo.</p></a>
       <a class="card topic" href="#/respaldo"><h3>Mis datos y respaldo</h3><p class="muted small">Cómo conservar tu avance.</p></a>
       <a class="card topic" href="#/tutor"><h3>Panel del tutor</h3><p class="muted small">Qué explicaciones funcionan y qué errores se repiten.</p></a>
@@ -559,6 +561,7 @@
       <div id="install" class="mt"></div><p class="small muted mt">Versión ${VERSION}</p>`;
     const btns = $$('[data-th]', el); const upd = () => btns.forEach((b) => b.classList.toggle('on', b.dataset.th === Store.d.settings.theme));
     btns.forEach((b) => b.addEventListener('click', () => { Store.d.settings.theme = b.dataset.th; Store.save(); applyTheme(); upd(); })); upd();
+    $('#openFocus', el).addEventListener('click', openPanel);
     installUI($('#install', el));
   });
 
@@ -571,12 +574,17 @@
   const csvCell = (v) => { const s = v === null || v === undefined ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   function exportJSON() { const d = Store.d; d.lastExport = Date.now(); Store.save(); download('brujula-respaldo-' + today() + '.json', JSON.stringify(d, null, 1), 'application/json'); toast('Respaldo descargado. Guárdalo en un lugar seguro.'); }
   function exportCSV() {
-    const rows = [['fecha', 'asignatura', 'tema', 'tipo', 'modo', 'sesion', 'correcto', 'error', 'segundos', 'ejercicio', 'respuesta']];
-    Store.d.attempts.forEach((a) => rows.push([new Date(a.t).toISOString(), (SUBJ(subjOf(a)) || {}).name || subjOf(a), a.topic, Gen.SUBS[a.sub] ? Gen.SUBS[a.sub].name : a.sub, a.mode, a.ses, a.ok ? 'sí' : 'no', a.err ? (Gen.ERR[a.err] ? Gen.ERR[a.err].t : a.err) : '', Math.round((a.ms || 0) / 1000), a.q, a.a]));
+    const rows = [['fecha', 'asignatura', 'tema', 'tipo', 'modo', 'sesion', 'enfoque', 'correcto', 'error', 'segundos', 'ejercicio', 'respuesta']];
+    Store.d.attempts.forEach((a) => rows.push([new Date(a.t).toISOString(), (SUBJ(subjOf(a)) || {}).name || subjOf(a), a.topic, Gen.SUBS[a.sub] ? Gen.SUBS[a.sub].name : a.sub, a.mode, a.ses, a.focus ? 'sí' : 'no', a.ok ? 'sí' : 'no', a.err ? (Gen.ERR[a.err] ? Gen.ERR[a.err].t : a.err) : '', Math.round((a.ms || 0) / 1000), a.q, a.a]));
     download('brujula-intentos-' + today() + '.csv', '﻿' + rows.map((r) => r.map(csvCell).join(',')).join('\n'), 'text/csv');
     const r2 = [['fecha', 'tema', 'tipo_explicacion', 'explicacion', 'valoracion', 'veces_abierta']];
     Object.entries(Store.d.ratings).forEach(([id, r]) => r2.push([new Date(r.t).toISOString(), r.topic, KINDS[r.kind] ? KINDS[r.kind].name : r.kind, r.title, { si: 'me ayudó', mas: 'más o menos', no: 'no me ayudó' }[r.v], Store.d.views[id] || 0]));
     setTimeout(() => download('brujula-valoraciones-' + today() + '.csv', '﻿' + r2.map((r) => r.map(csvCell).join(',')).join('\n'), 'text/csv'), 400);
+    if ((Store.d.focus || []).length) {
+      const r3 = [['inicio', 'fin', 'asignatura', 'minutos', 'bloque_planeado', 'completo']];
+      Store.d.focus.forEach((f) => r3.push([new Date(f.t).toISOString(), new Date(f.end).toISOString(), (SUBJ(f.subject || 'mat') || {}).name || f.subject, f.min, f.plan, f.done ? 'sí' : 'no']));
+      setTimeout(() => download('brujula-enfoque-' + today() + '.csv', '﻿' + r3.map((r) => r.map(csvCell).join(',')).join('\n'), 'text/csv'), 800);
+    }
   }
   function importJSON(file) {
     const fr = new FileReader();
@@ -593,6 +601,7 @@
         const incDB = Object.assign({}, inc.diagBy || {}); if (inc.diag && !incDB.mat) incDB.mat = inc.diag;
         d.diagBy = d.diagBy || {}; Object.keys(incDB).forEach((k) => { if (!d.diagBy[k] || incDB[k].t > d.diagBy[k].t) d.diagBy[k] = incDB[k]; });
         if (inc.settings && Array.isArray(inc.settings.subjects)) d.settings.subjects = [...new Set(enabled().concat(inc.settings.subjects))].filter((x) => Brujula.subjects[x]);
+        const fids = new Set((d.focus || []).map((f) => f.id)); d.focus = (d.focus || []).concat((inc.focus || []).filter((f) => !fids.has(f.id))).sort((a, b) => a.t - b.t);
         d.days = [...new Set(d.days.concat(inc.days || []))].sort();
         if (inc.notes && inc.notes !== d.notes) d.notes = d.notes ? d.notes + '\n\n' + inc.notes : inc.notes;
         Store.save(); toast('Respaldo importado y combinado con lo que ya había.'); render();
@@ -708,6 +717,14 @@
   const trendTxt = (t) => (t.a1 + t.a2 < 3 ? '' : t.a2 < t.a1 ? '<span class="good">bajando</span>' : t.a2 > t.a1 ? '<span class="warn-t">subiendo</span>' : 'igual');
 
   /* ================= PANEL DEL TUTOR ================= */
+  function focusCard() {
+    const fs = focusStats(cur()); const days = Object.keys(fs.byDay).sort().slice(-7);
+    if (!fs.L.length) return `<div class="card"><h2>Enfoque</h2><p class="muted">Todavía no usa los bloques de enfoque (botón <b>Enfoque</b> arriba, o Más → Enfoque y sonidos).</p></div>`;
+    const cmp = fs.inF.n >= 5 && fs.outF.n >= 5 ? `<p class="small">Aciertos <b>dentro</b> de un bloque de enfoque: <b>${fs.inF.p}%</b> de ${fs.inF.n} · <b>fuera</b>: <b>${fs.outF.p}%</b> de ${fs.outF.n}.</p>` : `<p class="small muted">Con al menos 5 ejercicios dentro y 5 fuera de los bloques se compararán sus aciertos.</p>`;
+    return `<div class="card"><h2>Enfoque</h2><p class="small muted">Bloques de estudio con descanso. Un bloque cuenta como completo si llegó al final del tiempo.</p>
+      <div class="stats"><div><b>${fs.done}</b><span>bloques completos</span></div><div><b>${fs.min}</b><span>minutos de enfoque</span></div></div>
+      <div class="scroll"><table class="tbl"><tr><th>Día</th><th>Bloques completos</th><th>Interrumpidos</th><th>Minutos</th></tr>${days.map((k) => `<tr><td>${dayLabel(k)}</td><td>${fs.byDay[k].blocks}</td><td>${fs.byDay[k].cut || '—'}</td><td>${fs.byDay[k].min}</td></tr>`).join('')}</table></div>${cmp}</div>`;
+  }
   route(/^\/tutor$/, (el) => {
     const d = view(); const A = d.attempts; const AS = A.filter(solving);
     const bar = (p, label) => `<div class="hbar"><span style="--p:${p}%"></span><em>${label}</em></div>`;
@@ -746,6 +763,7 @@
       <div class="card"><h2>Detective de errores</h2>${detRows ? `<p class="small muted">Cuántas veces encontró a la primera dónde empieza cada error escondido. Los que menos reconoce, primero.</p><div class="scroll"><table class="tbl"><tr><th>Error escondido</th><th>Lo encontró</th></tr>${detRows}</table></div>` : '<p class="muted">Todavía no usa el Detective.</p>'}</div>
       <div class="card"><h2>Diagnóstico y simulacros</h2>${d.diag ? `<p>Diagnóstico (${fdate(d.diag.t)}): <b>${d.diag.score} de ${d.diag.total}</b> — ${Object.entries(d.diag.by).map(([tp, v]) => Content.byId(tp).title + ' ' + v.ok + '/' + v.n).join(' · ')}</p>` : '<p class="muted">Diagnóstico pendiente.</p>'}
         ${simRows ? `<div class="scroll"><table class="tbl"><tr><th>Fecha</th><th>Calif.</th><th>Por tema</th><th>Tiempo</th><th>Sesión</th></tr>${simRows}</table></div>` : '<p class="muted">Sin simulacros.</p>'}</div>
+      ${focusCard()}
       <div class="card"><h2>Notas del tutor</h2><textarea id="notes" rows="5" placeholder="Observaciones, acuerdos, qué funcionó en la sesión…">${esc(d.notes || '')}</textarea><p class="small muted">Se guardan en este dispositivo y viajan en el respaldo.</p></div>
       <div class="row wrap gap"><button type="button" class="btn" id="exc">Descargar tablas (CSV)</button><button type="button" class="btn ghost" id="exj">Descargar respaldo</button></div>`;
     let nt; $('#notes', el).addEventListener('input', (e) => { clearTimeout(nt); nt = setTimeout(() => { Store.d.notes = e.target.value; Store.save(); }, 400); });
@@ -774,6 +792,7 @@
     if (ks.length > 1 && ks[ks.length - 1].score < 0.5) recs.push('Usar con menos frecuencia el enfoque “' + KINDS[ks[ks.length - 1].k].name + '”, o solo como complemento.');
     tr.slice(0, 5).forEach((t) => { if (Content.ERR_RECS[t.e]) recs.push(Content.ERR_RECS[t.e]); });
     if (sa && sc && Math.abs(sa.p - sc.p) >= 15) recs.push(sc.p > sa.p ? 'Rinde notablemente mejor acompañada: conviene que las sesiones de temas nuevos sean con tutor y la práctica de consolidación por su cuenta.' : 'Rinde igual o mejor por su cuenta: dar espacio para practicar sola y usar las sesiones con tutor para revisar errores.');
+    { const fs = focusStats(cur()); if (fs.inF.n >= 5 && fs.outF.n >= 5 && Math.abs(fs.inF.p - fs.outF.p) >= 15) recs.push(fs.inF.p > fs.outF.p ? 'Rinde mejor dentro de los bloques de enfoque: conviene estudiar en bloques cortos con descanso y sonido de fondo.' : 'Los bloques de enfoque no mejoran sus aciertos: probar bloques más cortos o sin sonido de fondo.'); }
     const simTxt = d.sims.length ? d.sims.map((s) => s.grade.toFixed(1)).join(' → ') : 'sin simulacros';
     el.innerHTML = `<div class="noprint row wrap gap"><a class="back" href="#/tutor">← Panel del tutor</a><button type="button" class="btn sm" onclick="window.print()">Imprimir o guardar PDF</button></div><div class="noprint">${subjSwitch()}</div>
       <article class="report">
@@ -782,6 +801,7 @@
       ${ks.length ? `<ol>${ks.map((x) => `<li><b>${KINDS[x.k].name}</b> (${KINDS[x.k].hint.toLowerCase()}) — ${x.r.length ? 'valoración: ' + x.si + ' sí, ' + x.mas + ' más o menos, ' + x.no + ' no' : 'sin valoraciones'}${x.tn ? '; acierto justo después: ' + pct(x.tok, x.tn) + '% de ' + x.tn : ''}</li>`).join('')}</ol>` : '<p class="muted">Aún sin datos suficientes de valoraciones.</p>'}
       ${liked.length ? `<p><b>Explicaciones que le ayudaron:</b> ${liked.map(esc).join(' · ')}</p>` : ''}
       ${disliked.length ? `<p><b>Explicaciones que no le ayudaron:</b> ${disliked.map(esc).join(' · ')}</p>` : ''}
+      ${(() => { const fs = focusStats(cur()); return fs.L.length ? `<p><b>Bloques de enfoque:</b> ${fs.done} completos, ${fs.min} minutos${fs.inF.n >= 5 && fs.outF.n >= 5 ? ` · aciertos dentro de un bloque: ${fs.inF.p}% (${fs.inF.n}) · fuera: ${fs.outF.p}% (${fs.outF.n})` : ''}</p>` : ''; })()}
       ${sa || sc ? `<p><b>Por su cuenta:</b> ${sa ? sa.p + '% de aciertos (' + sa.n + ')' : 'pocos datos'} · <b>Con tutor:</b> ${sc ? sc.p + '% (' + sc.n + ')' : 'pocos datos'}</p>` : ''}
       <h2>2. Lo que ya domina</h2>
       ${strong.length ? `<ul>${strong.map((x) => `<li>${Gen.SUBS[x.s].name} — ${x.lp}% en los últimos 5 (${x.n} en total)</li>`).join('')}</ul>` : '<p class="muted">Todavía ningún tipo de ejercicio con dominio consistente.</p>'}
@@ -818,8 +838,130 @@
     });
   });
 
+  /* ================= ENFOQUE: bloques de estudio + sonidos de fondo ================= */
+  const PLANS = [[15, 5], [25, 5], [40, 10]];
+  const F = {
+    get now() { return Store.d.focusNow; },
+    set now(v) { Store.d.focusNow = v; Store.save(); },
+    left() { const n = this.now; if (!n) return 0; return n.paused != null ? n.paused : Math.max(0, n.endsAt - Date.now()); },
+    studying() { const n = this.now; return !!(n && n.phase === 'study' && n.paused == null); },
+    clean() { const n = this.now; return !!(n && n.phase === 'study' && n.clean); }
+  };
+  const mmss = (ms) => { const s = Math.ceil(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  const focusLog = (entry) => { Store.d.focus = Store.d.focus || []; Store.d.focus.push(Object.assign({ id: uid() }, entry)); Store.markDay(); Store.save(); };
+  const focusToday = () => (Store.d.focus || []).filter((f) => f.done && dayKey(f.t) === today());
+
+  function focusStart() {
+    const [s, b] = Store.d.settings.focusPlan || PLANS[0];
+    const clean = Store.d.settings.focusClean !== false;
+    F.now = { phase: 'study', t: Date.now(), endsAt: Date.now() + s * 60000, paused: null, study: s, rest: b, clean, subject: cur(), used: 0 };
+    focusUI(); toast(`Bloque de ${s} minutos. ¡Tú puedes!`);
+  }
+  // Minutos realmente estudiados en el bloque actual (sin contar pausas)
+  function studiedMs(n) { return n.study * 60000 - F.left(); }
+  function focusStop() {
+    const n = F.now; if (!n) return;
+    if (n.phase === 'study') { const ms = studiedMs(n); if (ms >= 60000) focusLog({ t: n.t, end: Date.now(), min: Math.round(ms / 60000), plan: n.study, done: false, subject: n.subject }); }
+    F.now = null; document.body.classList.remove('nav-peek'); focusUI();
+  }
+  function focusPause() {
+    const n = F.now; if (!n) return;
+    if (n.paused == null) n.paused = Math.max(0, n.endsAt - Date.now()); else { n.endsAt = Date.now() + n.paused; n.paused = null; }
+    F.now = n; focusUI();
+  }
+  function focusTick() {
+    const n = F.now; if (!n || n.paused != null || n.phase === 'ready') { paintBar(); return; }
+    if (Date.now() < n.endsAt) { paintBar(); return; }
+    if (n.phase === 'study') {
+      focusLog({ t: n.t, end: n.endsAt, min: n.study, plan: n.study, done: true, subject: n.subject });
+      F.now = Object.assign(n, { phase: 'break', endsAt: n.endsAt + n.rest * 60000 });
+      if (Date.now() >= F.now.endsAt) { F.now = Object.assign(n, { phase: 'ready' }); focusUI(); return; }   // la app estuvo cerrada todo el descanso
+      Sonido.chime(); toast(`¡Bloque terminado! Descansa ${n.rest} minutos: levántate, toma agua, mira lejos.`);
+    } else if (n.phase === 'break') {
+      F.now = Object.assign(n, { phase: 'ready' }); Sonido.chime(); toast('Terminó el descanso.');
+    }
+    focusUI();
+  }
+  function paintBar() {
+    const bar = $('#focusbar'); const n = F.now; const snd = Sonido.playing();
+    const show = !!n || !!snd; bar.hidden = !show; document.body.classList.toggle('has-fbar', show);
+    document.body.classList.toggle('focus-clean', F.clean() && n.paused == null);
+    if (!show) { bar.innerHTML = ''; return; }
+    let main = '';
+    if (n && n.phase === 'ready') main = `<span class="fb-lbl">¡Descanso terminado!</span><button type="button" class="btn sm" data-f="again">Otro bloque</button><button type="button" class="btn ghost sm" data-f="stop">Terminar</button>`;
+    else if (n) main = `<button type="button" class="fb-time" data-f="open" title="Abrir enfoque"><span class="fb-lbl">${n.phase === 'study' ? 'Estudio' : 'Descanso'}${n.paused != null ? ' · en pausa' : ''}</span><b>${mmss(F.left())}</b></button>
+      <button type="button" class="fb-icon" data-f="pause" aria-label="${n.paused != null ? 'Reanudar' : 'Pausar'}">${n.paused != null ? '▶' : '❚❚'}</button>`;
+    else main = `<button type="button" class="fb-time" data-f="open"><span class="fb-lbl">Sonido</span><b class="fb-snd">${Sonido.SOUNDS[snd].name}</b></button>`;
+    const sound = `<button type="button" class="fb-icon ${snd ? 'on' : ''}" data-f="snd" aria-label="${snd ? 'Detener sonido' : 'Poner sonido'}" title="${snd ? 'Detener ' + Sonido.SOUNDS[snd].name : 'Poner sonido'}">♪</button>`;
+    const menu = F.clean() && F.now.paused == null ? `<button type="button" class="fb-icon" data-f="menu" aria-label="Mostrar menú" title="Mostrar menú">☰</button>` : '';
+    bar.innerHTML = `<div class="fb-in">${main}${sound}${menu}</div>`;
+    if (n && n.phase !== 'ready') { const p = 1 - F.left() / ((n.phase === 'study' ? n.study : n.rest) * 60000); bar.style.setProperty('--fp', Math.round(p * 100) + '%'); } else bar.style.setProperty('--fp', '0%');
+  }
+  function focusUI() { paintBar(); const dlg = $('#focuspanel'); if (dlg.open) paintPanel(); }
+  function paintPanel() {
+    const dlg = $('#focuspanel'); const n = F.now; const st = Store.d.settings;
+    const plan = st.focusPlan || PLANS[0]; const snd = Sonido.playing(); const sel = st.sound || 'lluvia';
+    const today_ = focusToday(); const mins = today_.reduce((x, f) => x + f.min, 0);
+    dlg.innerHTML = `<div class="fp-head"><h2 id="fpTitle">Enfoque</h2><button type="button" class="fb-icon" data-f="close" aria-label="Cerrar">✕</button></div>
+      <section><h3>Bloques de estudio</h3>
+        ${n && n.phase !== 'ready' ? `<p class="fp-big">${n.phase === 'study' ? 'Estudio' : 'Descanso'} · <b>${mmss(F.left())}</b>${n.paused != null ? ' <span class="muted small">(en pausa)</span>' : ''}</p>
+          <div class="row wrap gap"><button type="button" class="btn" data-f="pause">${n.paused != null ? 'Reanudar' : 'Pausar'}</button><button type="button" class="btn ghost" data-f="stop">Terminar</button></div>`
+        : `<p class="small muted">Estudia un rato sin interrupciones y luego descansa. Al terminar cada parte suena un aviso suave.</p>
+          <div class="seg" role="group" aria-label="duración del bloque">${PLANS.map((p) => `<button type="button" data-plan="${p.join('/')}" class="${p.join('/') === plan.join('/') ? 'on' : ''}">${p[0]} min</button>`).join('')}</div>
+          <p class="small muted">Estudias ${plan[0]} minutos y descansas ${plan[1]}.</p>
+          <label class="fp-check"><input type="checkbox" id="fpClean" ${st.focusClean !== false ? 'checked' : ''}> Pantalla sin distracciones durante el bloque</label>
+          <button type="button" class="btn mt" data-f="start">Empezar bloque de ${plan[0]} min</button>`}
+        <p class="small muted mt">Hoy: ${today_.length} bloque${today_.length === 1 ? '' : 's'} completo${today_.length === 1 ? '' : 's'}${mins ? ' · ' + mins + ' min' : ''}.</p>
+      </section>
+      <section><h3>Sonido de fondo</h3>
+        ${Sonido.supported() ? `<div class="snd-grid">${Object.entries(Sonido.SOUNDS).map(([id, s]) => `<button type="button" data-snd="${id}" class="${(snd || sel) === id ? 'sel' : ''} ${snd === id ? 'on' : ''}"><b>${s.name}</b><span>${s.hint}</span></button>`).join('')}</div>
+        <div class="row wrap gap mt"><button type="button" class="btn ${snd ? 'ghost' : ''}" data-f="snd">${snd ? 'Detener sonido' : 'Reproducir'}</button>
+          <label class="vol">Volumen <input type="range" id="fpVol" min="0" max="1" step="0.05" value="${st.soundVol != null ? st.soundVol : 0.5}"></label></div>
+        <p class="small muted">Sigue sonando aunque cambies de pantalla. En el celular puede pausarse si se apaga la pantalla. Si hay más personas cerca, usa audífonos.</p>`
+        : '<p class="muted">Este navegador no puede reproducir sonidos.</p>'}
+      </section>`;
+  }
+  function openPanel() { const dlg = $('#focuspanel'); paintPanel(); if (!dlg.open) { if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', ''); } }
+  function closePanel() { const dlg = $('#focuspanel'); if (dlg.close) dlg.close(); else dlg.removeAttribute('open'); }
+  function handleFocus(e) {
+    const t = e.target.closest('[data-f],[data-plan],[data-snd]'); if (!t) return;
+    const st = Store.d.settings;
+    if (t.dataset.plan) { st.focusPlan = t.dataset.plan.split('/').map(Number); Store.save(); paintPanel(); return; }
+    if (t.dataset.snd) { st.sound = t.dataset.snd; Store.save(); Sonido.play(t.dataset.snd); return; }
+    switch (t.dataset.f) {
+      case 'open': openPanel(); break;
+      case 'close': closePanel(); break;
+      case 'start': case 'again': if (F.now) focusStop(); focusStart(); closePanel(); break;
+      case 'pause': focusPause(); break;
+      case 'stop': focusStop(); break;
+      case 'menu': document.body.classList.toggle('nav-peek'); break;
+      case 'snd': if (Sonido.playing()) Sonido.stop(); else Sonido.play(st.sound || 'lluvia'); break;
+    }
+  }
+  function initFocus() {
+    Sonido.setVolume(Store.d.settings.soundVol != null ? Store.d.settings.soundVol : 0.5);
+    Sonido.onchange(focusUI);
+    $('#focusBtn').addEventListener('click', openPanel);
+    $('#focusbar').addEventListener('click', handleFocus);
+    const dlg = $('#focuspanel');
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) { closePanel(); return; } handleFocus(e); });
+    dlg.addEventListener('change', (e) => { if (e.target.id === 'fpClean') { Store.d.settings.focusClean = e.target.checked; Store.save(); } });
+    dlg.addEventListener('input', (e) => { if (e.target.id === 'fpVol') { Store.d.settings.soundVol = +e.target.value; Sonido.setVolume(+e.target.value); clearTimeout(dlg._vt); dlg._vt = setTimeout(() => Store.save(), 300); } });
+    window.addEventListener('hashchange', () => document.body.classList.remove('nav-peek'));
+    setInterval(() => { focusTick(); if (dlg.open && F.now) { const b = $('.fp-big b', dlg); if (b) b.textContent = mmss(F.left()); } }, 1000);
+    focusTick();
+  }
+  // Para el panel y el informe
+  function focusStats(sid) {
+    const L = (Store.d.focus || []).filter((f) => (f.subject || 'mat') === sid);
+    const byDay = {}; L.forEach((f) => { const k = dayKey(f.t); byDay[k] = byDay[k] || { blocks: 0, min: 0, cut: 0 }; byDay[k].min += f.min; if (f.done) byDay[k].blocks++; else byDay[k].cut++; });
+    const AS = view(sid).attempts.filter(solving); const inF = AS.filter((a) => a.focus), outF = AS.filter((a) => !a.focus);
+    return { L, byDay, done: L.filter((f) => f.done).length, min: L.reduce((x, f) => x + f.min, 0), inF: { n: inF.length, p: pct(inF.filter((a) => a.ok).length, inF.length) }, outF: { n: outF.length, p: pct(outF.filter((a) => a.ok).length, outF.length) } };
+  }
+
   /* ================= ARRANQUE ================= */
   updateChip();
+  initFocus();
   render();
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').catch(() => { });
